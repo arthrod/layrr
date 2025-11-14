@@ -14,11 +14,11 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thetronjohnson/layrr/internal/ai"
-	"github.com/thetronjohnson/layrr/internal/analyzer"
-	"github.com/thetronjohnson/layrr/internal/bridge"
-	"github.com/thetronjohnson/layrr/internal/config"
-	"github.com/thetronjohnson/layrr/internal/watcher"
+	"github.com/thetronjohnson/layrr/pkg/ai"
+	"github.com/thetronjohnson/layrr/pkg/analyzer"
+	"github.com/thetronjohnson/layrr/pkg/bridge"
+	"github.com/thetronjohnson/layrr/pkg/config"
+	"github.com/thetronjohnson/layrr/pkg/watcher"
 )
 
 //go:embed inject.js inject-utils.js inject.css alpine.min.js tailwind.min.js

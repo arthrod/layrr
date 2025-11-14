@@ -1,29 +1,27 @@
-# Binaries
-build/
+# Binaries for programs and plugins
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
+bin
+.DS_Store
 
-# Test binary
+# Test binary, built with `go test -c`
 *.test
 
 # Output of the go coverage tool
 *.out
 
+# Dependency directories (remove the comment below to include it)
+# vendor/
+
 # Go workspace file
 go.work
 
-# Dependency directories
-vendor/
+# Wails build directory
+build/bin/
 
-# macOS
-.DS_Store
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
+# Node modules
+frontend/node_modules/
+frontend/dist/
