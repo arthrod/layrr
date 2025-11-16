@@ -43,7 +43,7 @@ interface PortInfo {
 
 function App() {
     const [isServerActive, setIsServerActive] = useState(false);
-    const [proxyURL, setProxyURL] = useState('');
+    const [devServerURL, setDevServerURL] = useState(''); // Changed from proxyURL
     const [projectInfo, setProjectInfo] = useState<ProjectInfo | null>(null);
     const [statusMessage, setStatusMessage] = useState('Click "Start Proxy" to begin');
     const [isLoading, setIsLoading] = useState(false);
@@ -54,10 +54,12 @@ function App() {
     // New sidebar UX state
     const [isEditMode, setIsEditMode] = useState(false);
     const [isSelectionMode, setIsSelectionMode] = useState(false);
+    const [isColorPickerMode, setIsColorPickerMode] = useState(false);
     const [selectedElement, setSelectedElement] = useState<SelectedElement | null>(null);
     const [screenshot, setScreenshot] = useState<string | null>(null);
     const [isCapturing, setIsCapturing] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
+    const [toastMessage, setToastMessage] = useState<string | null>(null);
     const iframeRef = useRef<HTMLIFrameElement>(null);
 
     // Target port configuration
@@ -68,8 +70,9 @@ function App() {
     const [selectedProjectForWelcome, setSelectedProjectForWelcome] = useState<{ path: string; name: string } | null>(null);
     const [detectedPorts, setDetectedPorts] = useState<PortInfo[]>([]);
 
-    // WebSocket connection
-    const { isConnected, sendMessage } = useWebSocket(proxyURL);
+    // WebSocket connection - now connects to asset server on 9998
+    const assetServerURL = 'http://localhost:9998';
+    const { isConnected, sendMessage } = useWebSocket(assetServerURL);
 
     // Load initial status
     useEffect(() => {
@@ -92,12 +95,24 @@ function App() {
                     setSelectedElement(payload);
                     setIsSelectionMode(false);
                     break;
+                case 'COLOR_PICKED':
+                    console.log('[Sidebar] Color picked:', payload);
+                    handleColorPicked(payload);
+                    break;
             }
         };
 
         window.addEventListener('message', handleMessage);
         return () => window.removeEventListener('message', handleMessage);
     }, []);
+
+    // Auto-hide toast after 3 seconds
+    useEffect(() => {
+        if (toastMessage) {
+            const timer = setTimeout(() => setToastMessage(null), 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [toastMessage]);
 
     // Sidebar control functions
     const handleToggleEditMode = () => {
@@ -110,6 +125,17 @@ function App() {
         const newSelectionMode = !isSelectionMode;
         setIsSelectionMode(newSelectionMode);
 
+        // Disable color picker mode if enabling selection mode
+        if (newSelectionMode && isColorPickerMode) {
+            setIsColorPickerMode(false);
+            if (iframeRef.current?.contentWindow) {
+                iframeRef.current.contentWindow.postMessage(
+                    { type: 'DISABLE_COLOR_PICKER_MODE' },
+                    '*'
+                );
+            }
+        }
+
         // Send message to iframe to enable/disable selection mode
         if (iframeRef.current?.contentWindow) {
             iframeRef.current.contentWindow.postMessage(
@@ -117,6 +143,43 @@ function App() {
                 '*'
             );
         }
+    };
+
+    const handleColorPicker = () => {
+        const newColorPickerMode = !isColorPickerMode;
+        setIsColorPickerMode(newColorPickerMode);
+
+        // Disable selection mode if enabling color picker mode
+        if (newColorPickerMode && isSelectionMode) {
+            setIsSelectionMode(false);
+            if (iframeRef.current?.contentWindow) {
+                iframeRef.current.contentWindow.postMessage(
+                    { type: 'DISABLE_SELECTION_MODE' },
+                    '*'
+                );
+            }
+        }
+
+        // Send message to iframe to enable/disable color picker mode
+        if (iframeRef.current?.contentWindow) {
+            iframeRef.current.contentWindow.postMessage(
+                { type: newColorPickerMode ? 'ENABLE_COLOR_PICKER_MODE' : 'DISABLE_COLOR_PICKER_MODE' },
+                '*'
+            );
+        }
+    };
+
+    const handleColorPicked = (payload: any) => {
+        const { backgroundColor, textColor } = payload;
+
+        // Copy background color to clipboard
+        navigator.clipboard.writeText(backgroundColor).then(() => {
+            setToastMessage(`Copied ${backgroundColor} to clipboard`);
+            setIsColorPickerMode(false);
+        }).catch(err => {
+            console.error('Failed to copy color:', err);
+            setToastMessage('Failed to copy color');
+        });
     };
 
     const handleCaptureScreenshot = async () => {
@@ -204,8 +267,10 @@ function App() {
             const status = await GetStatus();
             setIsServerActive(status.serverActive);
             if (status.serverActive) {
-                const url = await GetProxyURL();
-                setProxyURL(url);
+                // Use proxy port (9998) which proxies to dev server
+                const info = await GetProjectInfo();
+                const proxyPort = (info as ProjectInfo).proxyPort;
+                setDevServerURL(`http://localhost:${proxyPort}`);
             }
         } catch (error) {
             console.error('Error loading status:', error);
@@ -243,10 +308,11 @@ function App() {
 
             // Wait a bit for server to fully start
             setTimeout(async () => {
-                const url = await GetProxyURL();
-                setProxyURL(url);
-                setIsServerActive(true);
                 await loadProjectInfo();
+                const info = await GetProjectInfo();
+                const proxyPort = (info as ProjectInfo).proxyPort;
+                setDevServerURL(`http://localhost:${proxyPort}`);
+                setIsServerActive(true);
                 setIsLoading(false);
             }, 1000);
         } catch (error) {
@@ -261,7 +327,7 @@ function App() {
         try {
             const result = await StopProxy();
             setStatusMessage(result);
-            setProxyURL('');
+            setDevServerURL('');
             setIsServerActive(false);
             setIsLoading(false);
         } catch (error) {
@@ -362,10 +428,11 @@ function App() {
 
             // Wait a bit for server to fully start
             setTimeout(async () => {
-                const url = await GetProxyURL();
-                setProxyURL(url);
-                setIsServerActive(true);
                 await loadProjectInfo();
+                const info = await GetProjectInfo();
+                const proxyPort = (info as ProjectInfo).proxyPort;
+                setDevServerURL(`http://localhost:${proxyPort}`);
+                setIsServerActive(true);
                 setIsLoading(false);
                 setSelectedProjectForWelcome(null);
             }, 1000);
@@ -469,10 +536,10 @@ function App() {
                 <>
                     {/* Preview Panel (Left Side) */}
                     <div className="flex-1 flex items-center justify-center bg-primary relative">
-                        {isServerActive && proxyURL ? (
+                        {isServerActive && devServerURL ? (
                             <iframe
                                 ref={iframeRef}
-                                src={proxyURL}
+                                src={devServerURL}
                                 title="App Preview"
                                 className="w-full h-full border-0 bg-white"
                                 sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"
@@ -558,13 +625,35 @@ function App() {
                             )}
                         </div>
 
+                        {/* Color Picker Preview - Same location as selected element preview */}
+                        {toastMessage && toastMessage.startsWith('Copied') && (
+                            <div className="px-4 pt-3 pb-2">
+                                <div className="rounded-lg px-3 py-2 border border-dashed border-gray-400">
+                                    <div className="flex items-center gap-2">
+                                        <div
+                                            className="w-5 h-5 rounded border border-gray-300"
+                                            style={{ backgroundColor: toastMessage.match(/#[0-9a-fA-F]{6}/)?.[0] || '#000000' }}
+                                        ></div>
+                                        <p className="text-xs font-medium text-gray-900 font-mono">
+                                            {toastMessage.match(/#[0-9a-fA-F]{6}/)?.[0] || ''}
+                                        </p>
+                                    </div>
+                                    <p className="text-xs text-gray-600 mt-2">
+                                        Copied color to clipboard
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Chat Input at Bottom */}
                         {isServerActive && (
                             <ChatInput
                                 selectedElement={selectedElement}
                                 isProcessing={isProcessing}
                                 isSelectionMode={isSelectionMode}
+                                isColorPickerMode={isColorPickerMode}
                                 onSelectElement={handleSelectElement}
+                                onColorPicker={handleColorPicker}
                                 onSubmitPrompt={handleSubmitPrompt}
                                 onStopProxy={handleStopProxy}
                                 isLoading={isLoading}

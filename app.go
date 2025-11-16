@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/thetronjohnson/layrr/pkg/assetserver"
 	"github.com/thetronjohnson/layrr/pkg/bridge"
 	"github.com/thetronjohnson/layrr/pkg/claude"
 	"github.com/thetronjohnson/layrr/pkg/config"
@@ -20,13 +21,13 @@ import (
 // App struct
 type App struct {
 	ctx            context.Context
-	server         *proxy.Server
+	assetServer    *assetserver.Server
 	watcher        *watcher.Watcher
 	bridge         *bridge.Bridge
 	claudeManager  *claude.Manager
 	statusDisplay  *status.Display
 	projectDir     string
-	proxyPort      int
+	assetPort      int
 	targetPort     int
 	isServerActive bool
 }
@@ -34,7 +35,7 @@ type App struct {
 // NewApp creates a new App application struct
 func NewApp() *App {
 	return &App{
-		proxyPort:      9999,
+		assetPort:      9998,
 		targetPort:     0, // Will be auto-detected
 		isServerActive: false,
 	}
@@ -108,13 +109,13 @@ func (a *App) StartProxy(projectPath string, targetPort int) string {
 		return fmt.Sprintf("Error starting file watcher: %v", err)
 	}
 
-	// Create proxy server
-	a.server = proxy.NewServer(a.proxyPort, a.targetPort, a.bridge, a.watcher, false, a.projectDir)
+	// Create asset server (which also proxies to dev server)
+	a.assetServer = assetserver.NewServer(a.assetPort, a.targetPort, a.bridge, a.watcher, false)
 
-	// Start server in goroutine
+	// Start asset server in goroutine
 	go func() {
-		if err := a.server.Start(); err != nil {
-			log.Printf("Server error: %v", err)
+		if err := a.assetServer.Start(); err != nil {
+			log.Printf("Asset server error: %v", err)
 			a.isServerActive = false
 		}
 	}()
@@ -123,13 +124,13 @@ func (a *App) StartProxy(projectPath string, targetPort int) string {
 	time.Sleep(500 * time.Millisecond)
 	a.isServerActive = true
 
-	return fmt.Sprintf("Proxy server started on port %d, forwarding to port %d", a.proxyPort, a.targetPort)
+	return fmt.Sprintf("Layrr started - Proxy on port %d, Dev server on port %d", a.assetPort, a.targetPort)
 }
 
-// StopProxy stops the proxy server
+// StopProxy stops the asset server
 func (a *App) StopProxy() string {
 	if !a.isServerActive {
-		return "Proxy server is not running"
+		return "Server is not running"
 	}
 
 	// Create shutdown context with timeout
@@ -137,8 +138,8 @@ func (a *App) StopProxy() string {
 	defer cancel()
 
 	// Shutdown HTTP server gracefully
-	if a.server != nil {
-		a.server.Shutdown(ctx)
+	if a.assetServer != nil {
+		a.assetServer.Shutdown(ctx)
 	}
 
 	// Close watcher
@@ -147,22 +148,22 @@ func (a *App) StopProxy() string {
 	}
 
 	a.isServerActive = false
-	return "Proxy server stopped"
+	return "Layrr stopped"
 }
 
-// GetProxyURL returns the proxy URL
+// GetProxyURL returns the proxy server URL (kept for backward compatibility)
 func (a *App) GetProxyURL() string {
 	if !a.isServerActive {
 		return ""
 	}
-	return fmt.Sprintf("http://localhost:%d", a.proxyPort)
+	return fmt.Sprintf("http://localhost:%d", a.assetPort)
 }
 
 // GetProjectInfo returns information about the current project
 func (a *App) GetProjectInfo() map[string]interface{} {
 	return map[string]interface{}{
 		"projectDir":   a.projectDir,
-		"proxyPort":    a.proxyPort,
+		"proxyPort":    a.assetPort, // Keep field name for backward compatibility
 		"targetPort":   a.targetPort,
 		"serverActive": a.isServerActive,
 	}
@@ -291,7 +292,7 @@ func (a *App) GetStatus() map[string]interface{} {
 	return map[string]interface{}{
 		"serverActive": a.isServerActive,
 		"projectDir":   a.projectDir,
-		"proxyPort":    a.proxyPort,
+		"proxyPort":    a.assetPort, // Keep field name for backward compatibility
 		"targetPort":   a.targetPort,
 	}
 }

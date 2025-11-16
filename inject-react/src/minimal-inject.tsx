@@ -13,10 +13,12 @@ interface ElementInfo {
  * Only handles:
  * 1. Hover highlighting (when in selection mode)
  * 2. Element selection on click
- * 3. Communication with sidebar via postMessage
+ * 3. Color picker mode
+ * 4. Communication with sidebar via postMessage
  */
 class MinimalLayrr {
   private isSelectionMode = false;
+  private isColorPickerMode = false;
   private hoveredElement: HTMLElement | null = null;
   private highlightOverlay: HTMLDivElement | null = null;
 
@@ -68,6 +70,12 @@ class MinimalLayrr {
       case 'DISABLE_SELECTION_MODE':
         this.disableSelectionMode();
         break;
+      case 'ENABLE_COLOR_PICKER_MODE':
+        this.enableColorPickerMode();
+        break;
+      case 'DISABLE_COLOR_PICKER_MODE':
+        this.disableColorPickerMode();
+        break;
       case 'HIGHLIGHT_ELEMENT':
         this.highlightElementBySelector(payload.selector);
         break;
@@ -87,8 +95,21 @@ class MinimalLayrr {
     console.log('[Layrr Minimal] Selection mode disabled');
   }
 
+  private enableColorPickerMode() {
+    this.isColorPickerMode = true;
+    document.body.style.cursor = 'crosshair';
+    console.log('[Layrr Minimal] Color picker mode enabled');
+  }
+
+  private disableColorPickerMode() {
+    this.isColorPickerMode = false;
+    document.body.style.cursor = '';
+    this.hideHighlight();
+    console.log('[Layrr Minimal] Color picker mode disabled');
+  }
+
   private handleMouseMove(e: MouseEvent) {
-    if (!this.isSelectionMode) return;
+    if (!this.isSelectionMode && !this.isColorPickerMode) return;
 
     const target = e.target as HTMLElement;
 
@@ -105,7 +126,7 @@ class MinimalLayrr {
   }
 
   private handleClick(e: MouseEvent) {
-    if (!this.isSelectionMode) return;
+    if (!this.isSelectionMode && !this.isColorPickerMode) return;
 
     e.preventDefault();
     e.stopPropagation();
@@ -118,7 +139,11 @@ class MinimalLayrr {
     // Ignore Layrr container
     if (target.id === 'layrr-container' || target.closest('#layrr-container')) return;
 
-    this.selectElement(target);
+    if (this.isColorPickerMode) {
+      this.pickColor(target);
+    } else {
+      this.selectElement(target);
+    }
   }
 
   private selectElement(element: HTMLElement) {
@@ -134,6 +159,68 @@ class MinimalLayrr {
 
     // Disable selection mode after selection
     this.disableSelectionMode();
+  }
+
+  private pickColor(element: HTMLElement) {
+    // Get computed styles
+    const computedStyle = window.getComputedStyle(element);
+    const backgroundColor = computedStyle.backgroundColor;
+    const color = computedStyle.color;
+
+    // Convert RGB to hex
+    const bgHex = this.rgbToHex(backgroundColor);
+    const textHex = this.rgbToHex(color);
+
+    console.log('[Layrr Minimal] Color picked:', { backgroundColor: bgHex, textColor: textHex });
+
+    // Send to sidebar
+    this.postMessage({
+      type: 'COLOR_PICKED',
+      payload: {
+        backgroundColor: bgHex,
+        textColor: textHex,
+        element: {
+          tagName: element.tagName,
+          selector: this.generateSelector(element)
+        }
+      }
+    });
+
+    // Disable color picker mode after picking
+    this.disableColorPickerMode();
+  }
+
+  private rgbToHex(rgb: string): string {
+    // Handle rgba, rgb, and hex formats
+    if (rgb.startsWith('#')) return rgb;
+
+    // Handle transparent
+    if (rgb === 'transparent' || rgb === 'rgba(0, 0, 0, 0)') {
+      return 'transparent';
+    }
+
+    const match = rgb.match(/\d+/g);
+    if (!match) return rgb;
+
+    const [r, g, b] = match.map(Number);
+    return '#' + [r, g, b].map(x => {
+      const hex = x.toString(16);
+      return hex.length === 1 ? '0' + hex : hex;
+    }).join('');
+  }
+
+  private generateSelector(element: HTMLElement): string {
+    const classes = Array.from(element.classList);
+    const id = element.id;
+    const tagName = element.tagName;
+
+    let selector = tagName.toLowerCase();
+    if (id) {
+      selector = `#${id}`;
+    } else if (classes.length > 0) {
+      selector += '.' + classes.join('.');
+    }
+    return selector;
   }
 
   private getElementInfo(element: HTMLElement): ElementInfo {

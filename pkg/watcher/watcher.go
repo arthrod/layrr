@@ -21,6 +21,7 @@ type Watcher struct {
 	timer     *time.Timer
 	verbose   bool
 	display   *status.Display
+	callbacks []func() // Callback functions to call on file changes
 }
 
 // NewWatcher creates a new file watcher
@@ -146,6 +147,16 @@ func (w *Watcher) notifyClients() {
 			}
 		}
 	}
+
+	// Call registered callbacks
+	for _, callback := range w.callbacks {
+		callback()
+	}
+}
+
+// OnChange registers a callback to be called when files change
+func (w *Watcher) OnChange(callback func()) {
+	w.callbacks = append(w.callbacks, callback)
 }
 
 // AddClient adds a WebSocket client to receive reload notifications

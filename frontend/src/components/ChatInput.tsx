@@ -12,7 +12,9 @@ interface ChatInputProps {
   } | null;
   isProcessing: boolean;
   isSelectionMode: boolean;
+  isColorPickerMode: boolean;
   onSelectElement: () => void;
+  onColorPicker: () => void;
   onSubmitPrompt: (prompt: string) => void;
   onStopProxy?: () => void;
   isLoading?: boolean;
@@ -22,7 +24,9 @@ export default function ChatInput({
   selectedElement,
   isProcessing,
   isSelectionMode,
+  isColorPickerMode,
   onSelectElement,
+  onColorPicker,
   onSubmitPrompt,
   onStopProxy,
   isLoading
@@ -153,9 +157,14 @@ export default function ChatInput({
 
         {/* Color Picker Button */}
         <button
+          onClick={onColorPicker}
           disabled={isProcessing}
-          className="p-2 rounded-md text-gray-700 hover:bg-primary-dark transition-all disabled:opacity-50"
-          title="Color Picker"
+          className={`p-2 rounded-md transition-all ${
+            isColorPickerMode
+              ? 'bg-[#2563eb] text-white'
+              : 'text-gray-700 hover:bg-primary-dark'
+          }`}
+          title={isColorPickerMode ? 'Click to disable color picker' : 'Color Picker'}
         >
           <Eyedropper size={16} weight="bold" />
         </button>
