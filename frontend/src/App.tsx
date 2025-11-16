@@ -3,6 +3,7 @@ import { StartProxy, StopProxy, GetProxyURL, GetStatus, GetProjectInfo, SelectPr
 import ChatInput from './components/ChatInput';
 import WelcomeScreen from './components/WelcomeScreen';
 import { FolderOpen, Play, Stop, X } from '@phosphor-icons/react';
+import { useWebSocket } from './hooks/useWebSocket';
 
 interface ProjectInfo {
     projectDir: string;
@@ -22,6 +23,8 @@ interface SelectedElement {
         x: number;
         y: number;
     };
+    innerText?: string;
+    outerHTML?: string;
 }
 
 interface RecentProject {
@@ -64,6 +67,9 @@ function App() {
     const [recentProjects, setRecentProjects] = useState<RecentProject[]>([]);
     const [selectedProjectForWelcome, setSelectedProjectForWelcome] = useState<{ path: string; name: string } | null>(null);
     const [detectedPorts, setDetectedPorts] = useState<PortInfo[]>([]);
+
+    // WebSocket connection
+    const { isConnected, sendMessage } = useWebSocket(proxyURL);
 
     // Load initial status
     useEffect(() => {
@@ -124,15 +130,73 @@ function App() {
     };
 
     const handleSubmitPrompt = async (prompt: string) => {
-        if (!selectedElement) return;
+        if (!selectedElement) {
+            console.warn('[Sidebar] ⚠️ No element selected');
+            return;
+        }
+
+        console.log('[Sidebar] 🚀 === STARTING PROMPT SUBMISSION ===');
+        console.log('[Sidebar] Prompt:', prompt);
+        console.log('[Sidebar] Selected element:', selectedElement);
+        console.log('[Sidebar] WebSocket connected?:', isConnected);
 
         setIsProcessing(true);
-        console.log('[Sidebar] Submitting prompt:', prompt, 'for element:', selectedElement.selector);
 
-        // TODO: Send to Go backend for AI processing
-        setTimeout(() => {
+        // Format message according to bridge.Message structure
+        const message = {
+            id: Date.now(),
+            area: {
+                x: Math.round(selectedElement.bounds.x),
+                y: Math.round(selectedElement.bounds.y),
+                width: Math.round(selectedElement.bounds.width),
+                height: Math.round(selectedElement.bounds.height),
+                elementCount: 1,
+                elements: [{
+                    tagName: selectedElement.tagName,
+                    id: selectedElement.id,
+                    classes: selectedElement.classes.join(' '), // Convert array to space-separated string
+                    selector: selectedElement.selector,
+                    innerText: selectedElement.innerText || '',
+                    outerHTML: selectedElement.outerHTML || ''
+                }]
+            },
+            instruction: prompt,
+            screenshot: screenshot || '' // Include screenshot if available
+        };
+
+        console.log('[Sidebar] 📦 Formatted message for Claude Code:', message);
+
+        // Send via WebSocket with response handler
+        const messageId = sendMessage(message, (response) => {
+            console.log('[Sidebar] 📬 === RESPONSE RECEIVED ===');
+            console.log('[Sidebar] Full response:', response);
+            console.log('[Sidebar] Status:', response.status);
+
+            if (response.status === 'acknowledged') {
+                console.log('[Sidebar] ✅ Message acknowledged by backend');
+            } else if (response.status === 'processing') {
+                console.log('[Sidebar] ⚙️ Backend is processing the request with Claude Code');
+                if (response.message) {
+                    console.log('[Sidebar] Processing message:', response.message);
+                }
+            } else if (response.status === 'complete') {
+                console.log('[Sidebar] ✅ Processing complete!');
+                console.log('[Sidebar] Result:', response.result);
+                setIsProcessing(false);
+                setSelectedElement(null); // Clear selection after successful processing
+            } else if (response.status === 'error') {
+                console.error('[Sidebar] ❌ Error from backend:', response.error);
+                setStatusMessage(`Error: ${response.error}`);
+                setIsProcessing(false);
+            }
+        });
+
+        if (!messageId) {
+            console.error('[Sidebar] ❌ Failed to send message - WebSocket not connected');
             setIsProcessing(false);
-        }, 2000);
+        } else {
+            console.log('[Sidebar] ✅ Message sent with ID:', messageId);
+        }
     };
 
     const loadStatus = async () => {
@@ -440,6 +504,20 @@ function App() {
                     <div className="w-[400px] bg-primary border-l border flex flex-col overflow-hidden rounded-l-xl">
                         {/* Scrollable Content Area */}
                         <div className="flex-1 overflow-y-auto p-6">
+                            {/* WebSocket Connection Status */}
+                            {isServerActive && (
+                                <div className="mb-4">
+                                    <div className={`px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-2 ${
+                                        isConnected
+                                            ? 'bg-green-100 text-green-800'
+                                            : 'bg-red-100 text-red-800'
+                                    }`}>
+                                        <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                                        {isConnected ? 'WebSocket Connected' : 'WebSocket Disconnected'}
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Target Port Configuration */}
                             {!isServerActive && (
                                 <div className="mb-6">

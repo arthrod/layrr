@@ -860,6 +860,15 @@ func (s *Server) handleReloadWebSocket(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// getMapKeys returns the keys of a map as a slice
+func getMapKeys(m map[string]interface{}) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
 // handleMessageWebSocket handles WebSocket connections for messaging
 func (s *Server) handleMessageWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
@@ -882,17 +891,22 @@ func (s *Server) handleMessageWebSocket(w http.ResponseWriter, r *http.Request) 
 			break
 		}
 
+		fmt.Printf("[Proxy] 📥 === RECEIVED MESSAGE FROM BROWSER ===\n")
+		fmt.Printf("[Proxy] Raw message: %s\n", string(message))
+
 		// First, try to parse as generic map to check message type
 		var data map[string]interface{}
 		if err := json.Unmarshal(message, &data); err != nil {
-			if s.verbose {
-				fmt.Printf("[Proxy] Failed to parse message: %v\n", err)
-			}
+			fmt.Printf("[Proxy] ❌ Failed to parse message as JSON: %v\n", err)
 			continue
 		}
 
+		fmt.Printf("[Proxy] ✅ Parsed message successfully\n")
+		fmt.Printf("[Proxy] Message keys: %v\n", getMapKeys(data))
+
 		// Check if this is a design analysis message
 		if msgType, ok := data["type"].(string); ok {
+			fmt.Printf("[Proxy] 🏷️ Message has 'type' field: %s\n", msgType)
 			switch msgType {
 			case "analyze-design":
 				// Handle design analysis - this will block until Claude Code completes
@@ -937,16 +951,20 @@ func (s *Server) handleMessageWebSocket(w http.ResponseWriter, r *http.Request) 
 				}
 				continue
 			}
+		} else {
+			fmt.Printf("[Proxy] 🔄 No 'type' field found, treating as regular element selection message\n")
 		}
 
 		// Otherwise, handle as regular element selection message
+		fmt.Printf("[Proxy] 🔍 Attempting to parse as bridge.Message\n")
 		var msg bridge.Message
 		if err := json.Unmarshal(message, &msg); err != nil {
-			if s.verbose {
-				fmt.Printf("[Proxy] Failed to parse message: %v\n", err)
-			}
+			fmt.Printf("[Proxy] ❌ Failed to parse as bridge.Message: %v\n", err)
 			continue
 		}
+
+		fmt.Printf("[Proxy] ✅ Successfully parsed as bridge.Message\n")
+		fmt.Printf("[Proxy] Message ID: %d, Instruction: %s\n", msg.ID, msg.Instruction)
 
 		// Send acknowledgment that message was received
 		fmt.Printf("[Proxy] 📨 Sending 'received' ack for message ID %d\n", msg.ID)

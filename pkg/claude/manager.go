@@ -40,6 +40,11 @@ func (m *Manager) SendMessage(message string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	fmt.Printf("\n[Claude Manager] 🚀 === EXECUTING CLAUDE CODE ===\n")
+	fmt.Printf("[Claude Manager] Working directory: %s\n", m.projectDir)
+	fmt.Printf("[Claude Manager] Claude path: %s\n", m.claudePath)
+	fmt.Printf("[Claude Manager] Message: %s\n", message)
+
 	// Run Claude Code with streaming JSON output
 	// --output-format stream-json: Outputs JSONL (one JSON object per line)
 	// --verbose: Required when using stream-json with --print
@@ -51,6 +56,9 @@ func (m *Manager) SendMessage(message string) error {
 		"--dangerously-skip-permissions")
 	cmd.Dir = m.projectDir
 	cmd.Env = os.Environ()
+
+	fmt.Printf("[Claude Manager] Command: %s %v\n", m.claudePath, cmd.Args[1:])
+	fmt.Printf("[Claude Manager] Working dir set to: %s\n", cmd.Dir)
 
 	// Pipe stdout to read line-by-line JSONL output
 	stdout, err := cmd.StdoutPipe()
@@ -75,6 +83,12 @@ func (m *Manager) SendMessage(message string) error {
 	// Wait for command to complete
 	waitErr := cmd.Wait()
 
+	if waitErr != nil {
+		fmt.Printf("[Claude Manager] ❌ Command failed with error: %v\n", waitErr)
+	} else {
+		fmt.Printf("[Claude Manager] ✅ Command completed successfully\n")
+	}
+
 	// Always notify TUI that processing is done (success or error)
 	if m.program != nil {
 		if waitErr != nil {
@@ -94,6 +108,7 @@ func (m *Manager) SendMessage(message string) error {
 		return fmt.Errorf("Claude Code execution failed: %w", waitErr)
 	}
 
+	fmt.Printf("[Claude Manager] 🎉 === CLAUDE CODE EXECUTION COMPLETE ===\n\n")
 	return nil
 }
 

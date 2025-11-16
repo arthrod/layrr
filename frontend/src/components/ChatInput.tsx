@@ -41,7 +41,16 @@ export default function ChatInput({
   }, [prompt]);
 
   const handleSubmit = () => {
-    if (!prompt.trim() || isProcessing) return;
+    console.log('[ChatInput] 🔥 handleSubmit called!');
+    console.log('[ChatInput] Prompt:', prompt);
+    console.log('[ChatInput] isProcessing:', isProcessing);
+
+    if (!prompt.trim() || isProcessing) {
+      console.log('[ChatInput] ⚠️ Submission blocked - empty prompt or already processing');
+      return;
+    }
+
+    console.log('[ChatInput] ✅ Calling onSubmitPrompt');
     onSubmitPrompt(prompt);
     setPrompt('');
     setSelectedImage(null);

@@ -71,6 +71,9 @@ func (a *App) StartProxy(projectPath string, targetPort int) string {
 	// Update project directory
 	if projectPath != "" {
 		a.projectDir = projectPath
+		log.Printf("✅ Project directory set to: %s", a.projectDir)
+	} else {
+		log.Printf("⚠️  No project path provided, using default: %s", a.projectDir)
 	}
 
 	// Use provided port or auto-detect

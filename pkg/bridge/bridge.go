@@ -64,8 +64,14 @@ func (b *Bridge) SetProgram(p *tea.Program) {
 
 // HandleMessage processes a message from the browser and sends it to Claude Code
 func (b *Bridge) HandleMessage(msg Message) error {
+	fmt.Printf("[Bridge] 🌉 === HANDLING MESSAGE ===\n")
+	fmt.Printf("[Bridge] Message ID: %d\n", msg.ID)
+	fmt.Printf("[Bridge] Instruction: %s\n", msg.Instruction)
+
 	// Format the message for Claude Code
+	fmt.Printf("[Bridge] 📝 Formatting message for Claude Code...\n")
 	formattedMsg := b.formatMessage(msg)
+	fmt.Printf("[Bridge] ✅ Formatted message: %s\n", formattedMsg)
 
 	// Create completion channel for synchronization
 	completionCh := make(chan struct{})
@@ -82,9 +88,12 @@ func (b *Bridge) HandleMessage(msg Message) error {
 	}
 
 	// Send to Claude Code (this blocks until Claude finishes)
+	fmt.Printf("[Bridge] 🚀 Calling Claude Manager...\n")
 	if err := b.claudeManager.SendMessage(formattedMsg); err != nil {
+		fmt.Printf("[Bridge] ❌ Claude Manager error: %v\n", err)
 		return fmt.Errorf("failed to send message to Claude Code: %w", err)
 	}
+	fmt.Printf("[Bridge] ✅ Claude Manager completed successfully\n")
 
 	// Wait for TUI to finish processing the completion event (with timeout)
 	if b.program != nil {

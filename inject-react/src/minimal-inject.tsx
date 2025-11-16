@@ -4,6 +4,8 @@ interface ElementInfo {
   id: string;
   selector: string;
   bounds: DOMRect;
+  innerText?: string;
+  outerHTML?: string;
 }
 
 /**
@@ -161,7 +163,9 @@ class MinimalLayrr {
       classes,
       id,
       selector,
-      bounds: bounds.toJSON()
+      bounds: bounds.toJSON(),
+      innerText: element.innerText,
+      outerHTML: element.outerHTML
     };
   }
 
