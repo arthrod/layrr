@@ -8,13 +8,11 @@ import (
 	"path/filepath"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/thetronjohnson/layrr/pkg/bridge"
 	"github.com/thetronjohnson/layrr/pkg/claude"
 	"github.com/thetronjohnson/layrr/pkg/config"
 	"github.com/thetronjohnson/layrr/pkg/proxy"
 	"github.com/thetronjohnson/layrr/pkg/status"
-	"github.com/thetronjohnson/layrr/pkg/tui"
 	"github.com/thetronjohnson/layrr/pkg/watcher"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -26,7 +24,6 @@ type App struct {
 	watcher        *watcher.Watcher
 	bridge         *bridge.Bridge
 	claudeManager  *claude.Manager
-	tuiProgram     *tea.Program
 	statusDisplay  *status.Display
 	projectDir     string
 	proxyPort      int
@@ -94,22 +91,16 @@ func (a *App) StartProxy(projectPath string, targetPort int) string {
 		return fmt.Sprintf("Error: %v. Please set your Anthropic API key.", err)
 	}
 
-	// Initialize TUI (without alt screen since we're in a GUI)
-	tuiModel := tui.NewModel()
-	a.tuiProgram = tea.NewProgram(tuiModel)
-
 	// Start Claude Code manager
+	fmt.Printf("\n[App] 📂 Creating Claude Manager with project directory: %s\n", a.projectDir)
 	a.claudeManager, err = claude.NewManager(a.projectDir, "claude", false)
 	if err != nil {
 		return fmt.Sprintf("Error starting Claude Code: %v", err)
 	}
-
-	// Connect manager to TUI
-	a.claudeManager.SetProgram(a.tuiProgram)
+	fmt.Printf("[App] ✅ Claude Manager created successfully\n")
 
 	// Create bridge
 	a.bridge = bridge.NewBridge(a.claudeManager, false, a.statusDisplay)
-	a.bridge.SetProgram(a.tuiProgram)
 
 	// Start file watcher
 	a.watcher, err = watcher.NewWatcher(a.projectDir, false, a.statusDisplay)

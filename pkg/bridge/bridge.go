@@ -2,14 +2,10 @@ package bridge
 
 import (
 	"fmt"
-	"os"
 	"strings"
-	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/thetronjohnson/layrr/pkg/claude"
 	"github.com/thetronjohnson/layrr/pkg/status"
-	"github.com/thetronjohnson/layrr/pkg/tui"
 )
 
 // ElementInfo represents information about a selected HTML element
@@ -45,7 +41,6 @@ type Bridge struct {
 	claudeManager *claude.Manager
 	verbose       bool
 	display       *status.Display
-	program       *tea.Program
 }
 
 // NewBridge creates a new bridge
@@ -55,11 +50,6 @@ func NewBridge(claudeManager *claude.Manager, verbose bool, display *status.Disp
 		verbose:       verbose,
 		display:       display,
 	}
-}
-
-// SetProgram sets the TUI program for sending messages
-func (b *Bridge) SetProgram(p *tea.Program) {
-	b.program = p
 }
 
 // HandleMessage processes a message from the browser and sends it to Claude Code
@@ -73,40 +63,22 @@ func (b *Bridge) HandleMessage(msg Message) error {
 	formattedMsg := b.formatMessage(msg)
 	fmt.Printf("[Bridge] ✅ Formatted message: %s\n", formattedMsg)
 
-	// Create completion channel for synchronization
-	completionCh := make(chan struct{})
-
-	// Notify TUI that an instruction was received
-	if b.program != nil {
-		areaInfo := fmt.Sprintf("%dx%d px · %d elements",
-			msg.Area.Width, msg.Area.Height, msg.Area.ElementCount)
-		b.program.Send(tui.InstructionMsg{
-			Instruction:   msg.Instruction,
-			AreaInfo:      areaInfo,
-			CompletionAck: completionCh,
-		})
-	}
+	// Log the instruction details
+	areaInfo := fmt.Sprintf("%dx%d px · %d elements",
+		msg.Area.Width, msg.Area.Height, msg.Area.ElementCount)
+	fmt.Printf("[Bridge] 📊 Area info: %s\n", areaInfo)
+	fmt.Printf("[Bridge] 💬 Instruction: %s\n", msg.Instruction)
 
 	// Send to Claude Code (this blocks until Claude finishes)
 	fmt.Printf("[Bridge] 🚀 Calling Claude Manager...\n")
-	if err := b.claudeManager.SendMessage(formattedMsg); err != nil {
+
+	err := b.claudeManager.SendMessage(formattedMsg)
+
+	if err != nil {
 		fmt.Printf("[Bridge] ❌ Claude Manager error: %v\n", err)
 		return fmt.Errorf("failed to send message to Claude Code: %w", err)
 	}
 	fmt.Printf("[Bridge] ✅ Claude Manager completed successfully\n")
-
-	// Wait for TUI to finish processing the completion event (with timeout)
-	if b.program != nil {
-		select {
-		case <-completionCh:
-			// TUI has processed the completion event
-		case <-time.After(5 * time.Second):
-			// Timeout - continue anyway to prevent hanging
-			if b.verbose {
-				fmt.Fprintf(os.Stderr, "[Bridge] Timeout waiting for TUI completion acknowledgment\n")
-			}
-		}
-	}
 
 	return nil
 }

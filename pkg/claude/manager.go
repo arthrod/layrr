@@ -7,9 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"sync"
-
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/thetronjohnson/layrr/pkg/tui"
 )
 
 // Manager manages Claude Code execution using --print mode
@@ -18,7 +15,6 @@ type Manager struct {
 	projectDir string
 	mu         sync.Mutex
 	verbose    bool
-	program    *tea.Program // Bubble Tea program for sending events
 }
 
 // NewManager creates a new manager for Claude Code
@@ -30,15 +26,12 @@ func NewManager(projectDir, claudePath string, verbose bool) (*Manager, error) {
 	}, nil
 }
 
-// SetProgram sets the Bubble Tea program for sending UI updates
-func (m *Manager) SetProgram(p *tea.Program) {
-	m.program = p
-}
-
 // SendMessage sends a message to Claude Code using --print mode with streaming JSON output
 func (m *Manager) SendMessage(message string) error {
+	fmt.Printf("\n[Claude Manager] 📍 SendMessage called, attempting to acquire lock...\n")
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	fmt.Printf("[Claude Manager] 📍 Lock acquired!\n")
 
 	fmt.Printf("\n[Claude Manager] 🚀 === EXECUTING CLAUDE CODE ===\n")
 	fmt.Printf("[Claude Manager] Working directory: %s\n", m.projectDir)
@@ -76,8 +69,14 @@ func (m *Manager) SendMessage(message string) error {
 
 	// Read and parse JSONL output line by line
 	scanner := bufio.NewScanner(stdout)
+	lineCount := 0
 	for scanner.Scan() {
-		_ = m.handleStreamLine(scanner.Text()) // Silently skip unparseable lines
+		lineCount++
+		line := scanner.Text()
+		if m.verbose {
+			fmt.Printf("[Claude Manager] Output line %d: %s\n", lineCount, line)
+		}
+		_ = m.handleStreamLine(line) // Silently skip unparseable lines
 	}
 
 	// Wait for command to complete
@@ -85,34 +84,16 @@ func (m *Manager) SendMessage(message string) error {
 
 	if waitErr != nil {
 		fmt.Printf("[Claude Manager] ❌ Command failed with error: %v\n", waitErr)
-	} else {
-		fmt.Printf("[Claude Manager] ✅ Command completed successfully\n")
-	}
-
-	// Always notify TUI that processing is done (success or error)
-	if m.program != nil {
-		if waitErr != nil {
-			// Send error event if command failed
-			m.program.Send(tui.StreamEvent{
-				Type:    "error",
-				Content: fmt.Sprintf("Exit code: %v", waitErr),
-			})
-		} else {
-			// Send completion event if command succeeded
-			m.program.Send(tui.StreamEvent{Type: "complete"})
-		}
-	}
-
-	// Return error if there was one
-	if waitErr != nil {
 		return fmt.Errorf("Claude Code execution failed: %w", waitErr)
 	}
 
+	fmt.Printf("[Claude Manager] ✅ Command completed successfully\n")
+	fmt.Printf("[Claude Manager] 📊 Processed %d output lines\n", lineCount)
 	fmt.Printf("[Claude Manager] 🎉 === CLAUDE CODE EXECUTION COMPLETE ===\n\n")
 	return nil
 }
 
-// handleStreamLine parses a single line of JSONL output from Claude Code and sends to TUI
+// handleStreamLine parses a single line of JSONL output from Claude Code and logs it
 func (m *Manager) handleStreamLine(line string) error {
 	// Parse the JSON line
 	var event map[string]interface{}
@@ -126,39 +107,29 @@ func (m *Manager) handleStreamLine(line string) error {
 		return fmt.Errorf("missing or invalid 'type' field")
 	}
 
-	// Require TUI program to be set (fail fast)
-	if m.program == nil {
-		return fmt.Errorf("TUI program not initialized")
-	}
-
-	// Build stream event
-	streamEvent := tui.StreamEvent{
-		Type: eventType,
-		Data: event,
-	}
-
-	// Extract content for specific event types
+	// Log different event types
 	switch eventType {
 	case "content":
 		if content, ok := event["content"].(string); ok {
-			streamEvent.Content = content
+			fmt.Printf("[Claude] 💭 %s\n", content)
 		}
 	case "tool_use":
 		if toolName, ok := event["name"].(string); ok {
-			streamEvent.Content = toolName
+			fmt.Printf("[Claude] 🔧 Using tool: %s\n", toolName)
 		}
 	case "tool_result":
-		// Extract result content if available
 		if result, ok := event["content"].(string); ok {
-			streamEvent.Content = result
+			fmt.Printf("[Claude] ✅ Tool result: %s\n", result)
 		}
 	case "error":
 		if errMsg, ok := event["error"].(string); ok {
-			streamEvent.Content = errMsg
+			fmt.Printf("[Claude] ❌ Error: %s\n", errMsg)
+		}
+	default:
+		if m.verbose {
+			fmt.Printf("[Claude] 📋 Event type: %s\n", eventType)
 		}
 	}
 
-	// Send to TUI
-	m.program.Send(streamEvent)
 	return nil
 }

@@ -978,25 +978,25 @@ func (s *Server) handleMessageWebSocket(w http.ResponseWriter, r *http.Request) 
 		fmt.Printf("[Proxy] ⏳ Processing message ID %d...\n", msg.ID)
 		err = s.bridge.HandleMessage(msg)
 
-		// Send completion status with write deadline
+		// Send completion status with write deadline (10 seconds should be enough)
 		if err != nil {
 			fmt.Printf("[Proxy] ❌ Sending 'error' status for message ID %d: %v\n", msg.ID, err)
-			conn.SetWriteDeadline(time.Now().Add(2 * time.Second))
+			conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 			if writeErr := conn.WriteJSON(map[string]interface{}{
 				"id":     msg.ID,
 				"status": "error",
 				"error":  err.Error(),
 			}); writeErr != nil {
-				fmt.Fprintf(os.Stderr, "[Proxy] Failed to send error to browser: %v\n", writeErr)
+				fmt.Printf("[Proxy] ⚠️  Failed to send error to browser: %v (this is safe to ignore if browser already received the update via file watcher)\n", writeErr)
 			}
 		} else {
 			fmt.Printf("[Proxy] 🎉 Sending 'complete' status for message ID %d\n", msg.ID)
-			conn.SetWriteDeadline(time.Now().Add(2 * time.Second))
+			conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 			if writeErr := conn.WriteJSON(map[string]interface{}{
 				"id":     msg.ID,
 				"status": "complete",
 			}); writeErr != nil {
-				fmt.Fprintf(os.Stderr, "[Proxy] ⚠️  Failed to send completion to browser: %v\n", writeErr)
+				fmt.Printf("[Proxy] ⚠️  Failed to send completion to browser: %v (this is safe to ignore if browser already received the update via file watcher)\n", writeErr)
 			} else {
 				fmt.Printf("[Proxy] ✅ Successfully sent 'complete' for message ID %d\n", msg.ID)
 			}
