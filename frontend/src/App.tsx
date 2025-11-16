@@ -101,11 +101,13 @@ function App() {
     };
 
     const handleSelectElement = () => {
-        setIsSelectionMode(true);
-        // Send message to iframe to enable selection mode
+        const newSelectionMode = !isSelectionMode;
+        setIsSelectionMode(newSelectionMode);
+
+        // Send message to iframe to enable/disable selection mode
         if (iframeRef.current?.contentWindow) {
             iframeRef.current.contentWindow.postMessage(
-                { type: 'ENABLE_SELECTION_MODE' },
+                { type: newSelectionMode ? 'ENABLE_SELECTION_MODE' : 'DISABLE_SELECTION_MODE' },
                 '*'
             );
         }
@@ -438,20 +440,6 @@ function App() {
                     <div className="w-[400px] bg-primary border-l border flex flex-col overflow-hidden rounded-l-xl">
                         {/* Scrollable Content Area */}
                         <div className="flex-1 overflow-y-auto p-6">
-                            {/* Top Right Icon Button */}
-                            {isServerActive && (
-                                <div className="mb-6 flex justify-end">
-                                    <button
-                                        onClick={handleStopProxy}
-                                        disabled={isLoading}
-                                        className="p-2 rounded-md transition-all hover:bg-primary-dark disabled:opacity-50"
-                                        title="Stop Proxy"
-                                    >
-                                        <Stop size={20} weight="bold" className="text-gray-700" />
-                                    </button>
-                                </div>
-                            )}
-
                             {/* Target Port Configuration */}
                             {!isServerActive && (
                                 <div className="mb-6">
@@ -500,6 +488,8 @@ function App() {
                                 isSelectionMode={isSelectionMode}
                                 onSelectElement={handleSelectElement}
                                 onSubmitPrompt={handleSubmitPrompt}
+                                onStopProxy={handleStopProxy}
+                                isLoading={isLoading}
                             />
                         )}
 

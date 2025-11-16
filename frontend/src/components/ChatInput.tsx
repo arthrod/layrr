@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { CursorClick, Image as ImageIcon, PaperPlaneRight, ArrowsOutCardinal, Eyedropper } from '@phosphor-icons/react';
+import { CursorClick, Image as ImageIcon, PaperPlaneRight, ArrowsOutCardinal, Eyedropper, Stop } from '@phosphor-icons/react';
 
 interface ChatInputProps {
   selectedElement: {
@@ -14,6 +14,8 @@ interface ChatInputProps {
   isSelectionMode: boolean;
   onSelectElement: () => void;
   onSubmitPrompt: (prompt: string) => void;
+  onStopProxy?: () => void;
+  isLoading?: boolean;
 }
 
 export default function ChatInput({
@@ -21,7 +23,9 @@ export default function ChatInput({
   isProcessing,
   isSelectionMode,
   onSelectElement,
-  onSubmitPrompt
+  onSubmitPrompt,
+  onStopProxy,
+  isLoading
 }: ChatInputProps) {
   const [prompt, setPrompt] = useState('');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -101,13 +105,13 @@ export default function ChatInput({
         {/* Select Element Button */}
         <button
           onClick={onSelectElement}
-          disabled={isSelectionMode || isProcessing}
+          disabled={isProcessing}
           className={`p-2 rounded-md transition-all ${
             isSelectionMode
-              ? 'bg-green-600 text-white'
+              ? 'bg-[#2563eb] text-white'
               : 'text-gray-700 hover:bg-primary-dark'
           }`}
-          title={isSelectionMode ? 'Selecting...' : 'Select Element'}
+          title={isSelectionMode ? 'Click to disable selector' : 'Select Element'}
         >
           <CursorClick size={16} weight="bold" />
         </button>
@@ -146,6 +150,18 @@ export default function ChatInput({
         >
           <Eyedropper size={16} weight="bold" />
         </button>
+
+        {/* Stop Proxy Button - Right aligned */}
+        {onStopProxy && (
+          <button
+            onClick={onStopProxy}
+            disabled={isLoading}
+            className="ml-auto p-2 rounded-md text-gray-700 hover:bg-primary-dark transition-all disabled:opacity-50"
+            title="Stop Proxy"
+          >
+            <Stop size={16} weight="bold" />
+          </button>
+        )}
       </div>
 
       {/* Chat Input */}
