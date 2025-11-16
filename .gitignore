@@ -20,8 +20,43 @@ bin
 go.work
 
 # Wails build directory
-build/bin/
+build/
+wails_build_*
 
 # Node modules
 frontend/node_modules/
 frontend/dist/
+inject-react/node_modules/
+inject-react/dist/
+
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+*credentials*
+*secret*
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Temporary files
+tmp/
+temp/
+*.tmp

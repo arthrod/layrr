@@ -245,10 +245,26 @@ function App() {
             } else if (response.status === 'complete') {
                 console.log('[Sidebar] ✅ Processing complete!');
                 console.log('[Sidebar] Result:', response.result);
+
+                // Clear timeout
+                const timeoutId = (window as any)[`timeout_${response.id}`];
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                    delete (window as any)[`timeout_${response.id}`];
+                }
+
                 setIsProcessing(false);
                 setSelectedElement(null); // Clear selection after successful processing
             } else if (response.status === 'error') {
                 console.error('[Sidebar] ❌ Error from backend:', response.error);
+
+                // Clear timeout
+                const timeoutId = (window as any)[`timeout_${response.id}`];
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                    delete (window as any)[`timeout_${response.id}`];
+                }
+
                 setStatusMessage(`Error: ${response.error}`);
                 setIsProcessing(false);
             }
