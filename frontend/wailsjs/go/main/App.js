@@ -6,12 +6,20 @@ export function AddRecentProject(arg1, arg2, arg3) {
   return window['go']['main']['App']['AddRecentProject'](arg1, arg2, arg3);
 }
 
+export function CreateGitCheckpoint(arg1) {
+  return window['go']['main']['App']['CreateGitCheckpoint'](arg1);
+}
+
 export function DetectPortsWithInfo() {
   return window['go']['main']['App']['DetectPortsWithInfo']();
 }
 
 export function DetectRunningPorts() {
   return window['go']['main']['App']['DetectRunningPorts']();
+}
+
+export function GetGitCommitHistory(arg1) {
+  return window['go']['main']['App']['GetGitCommitHistory'](arg1);
 }
 
 export function GetProjectInfo() {
@@ -28,6 +36,10 @@ export function GetRecentProjects() {
 
 export function GetStatus() {
   return window['go']['main']['App']['GetStatus']();
+}
+
+export function IsGitRepository() {
+  return window['go']['main']['App']['IsGitRepository']();
 }
 
 export function OpenRecentProject(arg1, arg2) {
@@ -52,4 +64,8 @@ export function StartProxy(arg1, arg2) {
 
 export function StopProxy() {
   return window['go']['main']['App']['StopProxy']();
+}
+
+export function SwitchToGitCommit(arg1) {
+  return window['go']['main']['App']['SwitchToGitCommit'](arg1);
 }

@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { StartProxy, StopProxy, GetProxyURL, GetStatus, GetProjectInfo, SelectProjectDirectory, SetAPIKey, GetRecentProjects, OpenRecentProject, DetectRunningPorts, DetectPortsWithInfo } from "../wailsjs/go/main/App";
 import ChatInput from './components/ChatInput';
 import WelcomeScreen from './components/WelcomeScreen';
+import GitCheckpointModal from './components/GitCheckpointModal';
+import GitHistoryModal from './components/GitHistoryModal';
 import { FolderOpen, Play, Stop, X } from '@phosphor-icons/react';
 import { useWebSocket } from './hooks/useWebSocket';
 
@@ -60,6 +62,8 @@ function App() {
     const [isCapturing, setIsCapturing] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
     const [toastMessage, setToastMessage] = useState<string | null>(null);
+    const [showGitCheckpointModal, setShowGitCheckpointModal] = useState(false);
+    const [showGitHistoryModal, setShowGitHistoryModal] = useState(false);
     const iframeRef = useRef<HTMLIFrameElement>(null);
 
     // Target port configuration
@@ -360,6 +364,19 @@ function App() {
         } catch (error) {
             setStatusMessage(`Error: ${error}`);
             setIsLoading(false);
+        }
+    };
+
+    const handleGitCheckout = () => {
+        // Force iframe reload after git checkout
+        if (iframeRef.current) {
+            const currentSrc = iframeRef.current.src;
+            iframeRef.current.src = '';
+            setTimeout(() => {
+                if (iframeRef.current) {
+                    iframeRef.current.src = currentSrc;
+                }
+            }, 100);
         }
     };
 
@@ -681,6 +698,8 @@ function App() {
                                 isColorPickerMode={isColorPickerMode}
                                 onSelectElement={handleSelectElement}
                                 onColorPicker={handleColorPicker}
+                                onSaveCheckpoint={() => setShowGitCheckpointModal(true)}
+                                onViewHistory={() => setShowGitHistoryModal(true)}
                                 onSubmitPrompt={handleSubmitPrompt}
                                 onStopProxy={handleStopProxy}
                                 isLoading={isLoading}
@@ -747,6 +766,22 @@ function App() {
                     </div>
                 </div>
             )}
+
+            {/* Git Checkpoint Modal */}
+            <GitCheckpointModal
+                show={showGitCheckpointModal}
+                onClose={() => setShowGitCheckpointModal(false)}
+                onSuccess={() => {
+                    console.log('Git checkpoint created successfully');
+                }}
+            />
+
+            {/* Git History Modal */}
+            <GitHistoryModal
+                show={showGitHistoryModal}
+                onClose={() => setShowGitHistoryModal(false)}
+                onCheckout={handleGitCheckout}
+            />
         </div>
     );
 }

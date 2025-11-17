@@ -12,6 +12,7 @@ import (
 	"github.com/thetronjohnson/layrr/pkg/bridge"
 	"github.com/thetronjohnson/layrr/pkg/claude"
 	"github.com/thetronjohnson/layrr/pkg/config"
+	"github.com/thetronjohnson/layrr/pkg/git"
 	"github.com/thetronjohnson/layrr/pkg/proxy"
 	"github.com/thetronjohnson/layrr/pkg/status"
 	"github.com/thetronjohnson/layrr/pkg/watcher"
@@ -26,6 +27,7 @@ type App struct {
 	bridge         *bridge.Bridge
 	claudeManager  *claude.Manager
 	statusDisplay  *status.Display
+	gitManager     *git.GitManager
 	projectDir     string
 	assetPort      int
 	targetPort     int
@@ -56,6 +58,9 @@ func (a *App) startup(ctx context.Context) {
 
 	// Initialize status display
 	a.statusDisplay = status.NewDisplay()
+
+	// Initialize git manager
+	a.gitManager = git.NewGitManager(a.projectDir)
 
 	log.Println("Layrr app started successfully")
 }
@@ -270,6 +275,50 @@ func (a *App) ensureAPIKey() error {
 	}
 
 	return fmt.Errorf("Anthropic API key not found. Please set it in the app")
+}
+
+// CreateGitCheckpoint creates a git commit with all current changes
+func (a *App) CreateGitCheckpoint(message string) error {
+	if !a.gitManager.IsGitRepo() {
+		return fmt.Errorf("not a git repository")
+	}
+
+	if message == "" {
+		return fmt.Errorf("commit message cannot be empty")
+	}
+
+	return a.gitManager.CreateCommit(message)
+}
+
+// GetGitCommitHistory returns the list of recent commits
+func (a *App) GetGitCommitHistory(limit int) ([]git.Commit, error) {
+	if !a.gitManager.IsGitRepo() {
+		return nil, fmt.Errorf("not a git repository")
+	}
+
+	if limit <= 0 {
+		limit = 50 // Default to 50 commits
+	}
+
+	return a.gitManager.GetCommitHistory(limit)
+}
+
+// SwitchToGitCommit checks out a specific commit
+func (a *App) SwitchToGitCommit(commitHash string) error {
+	if !a.gitManager.IsGitRepo() {
+		return fmt.Errorf("not a git repository")
+	}
+
+	if commitHash == "" {
+		return fmt.Errorf("commit hash cannot be empty")
+	}
+
+	return a.gitManager.CheckoutCommit(commitHash)
+}
+
+// IsGitRepository checks if the current project is a git repo
+func (a *App) IsGitRepository() bool {
+	return a.gitManager.IsGitRepo()
 }
 
 // SetAPIKey saves the Anthropic API key

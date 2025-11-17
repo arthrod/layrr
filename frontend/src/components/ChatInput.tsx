@@ -15,6 +15,8 @@ interface ChatInputProps {
   isColorPickerMode: boolean;
   onSelectElement: () => void;
   onColorPicker: () => void;
+  onSaveCheckpoint: () => void;
+  onViewHistory: () => void;
   onSubmitPrompt: (prompt: string) => void;
   onStopProxy?: () => void;
   isLoading?: boolean;
@@ -27,6 +29,8 @@ export default function ChatInput({
   isColorPickerMode,
   onSelectElement,
   onColorPicker,
+  onSaveCheckpoint,
+  onViewHistory,
   onSubmitPrompt,
   onStopProxy,
   isLoading
@@ -161,20 +165,22 @@ export default function ChatInput({
           <Eyedropper size={16} weight="bold" />
         </button>
 
-        {/* Save Button */}
+        {/* Save Checkpoint Button */}
         <button
+          onClick={onSaveCheckpoint}
           disabled={isProcessing}
           className="p-2 rounded-md text-gray-700 hover:bg-primary-dark transition-all disabled:opacity-50"
-          title="Save"
+          title="Create Checkpoint"
         >
           <FloppyDisk size={16} weight="bold" />
         </button>
 
-        {/* Swap Button */}
+        {/* View History Button */}
         <button
+          onClick={onViewHistory}
           disabled={isProcessing}
           className="ml-auto p-2 rounded-md text-gray-700 hover:bg-primary-dark transition-all disabled:opacity-50"
-          title="Swap"
+          title="Checkpoint History"
         >
           <ArrowsLeftRight size={16} weight="bold" />
         </button>
