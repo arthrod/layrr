@@ -10,10 +10,12 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thetronjohnson/layrr/pkg/ai"
 	"github.com/thetronjohnson/layrr/pkg/bridge"
 	"github.com/thetronjohnson/layrr/pkg/watcher"
 )
@@ -222,7 +224,17 @@ func (s *Server) handleMessageWebSocket(w http.ResponseWriter, r *http.Request) 
 		fmt.Printf("[Asset Server] 📥 === RECEIVED MESSAGE FROM BROWSER ===\n")
 		fmt.Printf("[Asset Server] Raw message: %s\n", string(message))
 
-		// Parse as bridge.Message
+		// First, check if this is a design analysis request
+		var msgType struct {
+			Type string `json:"type"`
+		}
+		if err := json.Unmarshal(message, &msgType); err == nil && msgType.Type == "analyze-design" {
+			// Handle design analysis
+			s.handleDesignAnalysis(conn, message)
+			continue
+		}
+
+		// Parse as regular bridge.Message
 		var msg bridge.Message
 		if err := json.Unmarshal(message, &msg); err != nil {
 			fmt.Printf("[Asset Server] ❌ Failed to parse as bridge.Message: %v\n", err)
@@ -299,5 +311,122 @@ func (s *Server) handleReloadWebSocket(w http.ResponseWriter, r *http.Request) {
 
 	if s.verbose {
 		fmt.Printf("[Asset Server] Reload WebSocket disconnected (remaining: %d)\n", len(s.reloadClients)-1)
+	}
+}
+
+// handleDesignAnalysis handles design-to-code image analysis requests
+func (s *Server) handleDesignAnalysis(conn *websocket.Conn, message []byte) {
+	// Parse the design analysis request
+	var req struct {
+		Type      string `json:"type"`
+		ID        int    `json:"id"`
+		Image     string `json:"image"`     // base64 encoded image without prefix
+		ImageType string `json:"imageType"` // e.g., "image/png"
+		Prompt    string `json:"prompt"`
+	}
+
+	if err := json.Unmarshal(message, &req); err != nil {
+		fmt.Printf("[Asset Server] ❌ Failed to parse design analysis request: %v\n", err)
+		conn.WriteJSON(map[string]interface{}{
+			"id":     req.ID,
+			"status": "error",
+			"error":  fmt.Sprintf("Invalid request format: %v", err),
+		})
+		return
+	}
+
+	fmt.Printf("[Asset Server] 🖼️ === DESIGN ANALYSIS REQUEST ===\n")
+	fmt.Printf("[Asset Server] Message ID: %d\n", req.ID)
+	fmt.Printf("[Asset Server] Image type: %s\n", req.ImageType)
+	fmt.Printf("[Asset Server] User prompt: %s\n", req.Prompt)
+	fmt.Printf("[Asset Server] Image size: %d bytes\n", len(req.Image))
+
+	// Send acknowledgment
+	conn.WriteJSON(map[string]interface{}{
+		"id":     req.ID,
+		"status": "received",
+	})
+
+	// Get API key from environment
+	apiKey := os.Getenv("ANTHROPIC_API_KEY")
+	if apiKey == "" {
+		fmt.Printf("[Asset Server] ❌ ANTHROPIC_API_KEY not set\n")
+		conn.WriteJSON(map[string]interface{}{
+			"id":     req.ID,
+			"status": "error",
+			"error":  "ANTHROPIC_API_KEY environment variable not set",
+		})
+		return
+	}
+
+	// Create AI client
+	aiClient := ai.NewClient(apiKey)
+
+	// Call vision API to analyze the design
+	fmt.Printf("[Asset Server] 📸 Analyzing design with Claude Vision API...\n")
+	analysisText, err := aiClient.AnalyzeDesignImage(req.Image, req.ImageType, req.Prompt)
+	if err != nil {
+		fmt.Printf("[Asset Server] ❌ Vision API error: %v\n", err)
+		conn.SetWriteDeadline(time.Now().Add(2 * time.Minute))
+		conn.WriteJSON(map[string]interface{}{
+			"id":     req.ID,
+			"status": "error",
+			"error":  fmt.Sprintf("Vision analysis failed: %v", err),
+		})
+		return
+	}
+
+	fmt.Printf("[Asset Server] ✅ Vision analysis complete\n")
+	fmt.Printf("[Asset Server] Analysis length: %d characters\n", len(analysisText))
+
+	// Combine user prompt with vision analysis for Claude Code
+	combinedInstruction := fmt.Sprintf(`%s
+
+IMPORTANT: Implement EVERY element described below. Be EXHAUSTIVE and create a complete, production-ready component.
+
+Design Analysis:
+%s
+
+Create a complete, production-ready component that matches this design EXACTLY. Include:
+- All text content verbatim
+- Exact colors and styling
+- Proper spacing and layout
+- Interactive elements with hover states
+- Responsive design considerations`, req.Prompt, analysisText)
+
+	// Create bridge message to send to Claude Code
+	bridgeMsg := bridge.Message{
+		ID: req.ID,
+		Area: bridge.AreaInfo{
+			X:            0,
+			Y:            0,
+			Width:        0,
+			Height:       0,
+			ElementCount: 0,
+			Elements:     []bridge.ElementInfo{},
+		},
+		Instruction: combinedInstruction,
+		Screenshot:  "", // Already analyzed, don't send again
+	}
+
+	// Handle the message through the bridge (this blocks until Claude Code finishes)
+	fmt.Printf("[Asset Server] ⏳ Processing design implementation...\n")
+	err = s.bridge.HandleMessage(bridgeMsg)
+
+	// Send completion status
+	conn.SetWriteDeadline(time.Now().Add(2 * time.Minute))
+	if err != nil {
+		fmt.Printf("[Asset Server] ❌ Claude Code error: %v\n", err)
+		conn.WriteJSON(map[string]interface{}{
+			"id":     req.ID,
+			"status": "error",
+			"error":  err.Error(),
+		})
+	} else {
+		fmt.Printf("[Asset Server] 🎉 Design implementation complete\n")
+		conn.WriteJSON(map[string]interface{}{
+			"id":     req.ID,
+			"status": "complete",
+		})
 	}
 }

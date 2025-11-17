@@ -221,7 +221,61 @@ function App() {
         }, 1000);
     };
 
-    const handleSubmitPrompt = async (prompt: string) => {
+    const handleSubmitPrompt = async (prompt: string, image?: string | null) => {
+        // If image is provided, use vision analysis flow
+        if (image) {
+            console.log('[Sidebar] 🖼️ === STARTING IMAGE ANALYSIS ===');
+            console.log('[Sidebar] Prompt:', prompt);
+            console.log('[Sidebar] Image provided:', !!image);
+            console.log('[Sidebar] WebSocket connected?:', isConnected);
+
+            setIsProcessing(true);
+
+            // Extract image type from data URL
+            const imageTypeMatch = image.match(/data:(image\/[^;]+);base64,/);
+            const imageType = imageTypeMatch ? imageTypeMatch[1] : 'image/png';
+            const base64Data = image.replace(/^data:image\/[^;]+;base64,/, '');
+
+            // Format message for design analysis
+            const message = {
+                type: 'analyze-design',
+                id: Date.now(),
+                image: base64Data,
+                imageType: imageType,
+                prompt: prompt
+            };
+
+            console.log('[Sidebar] 📦 Formatted message for vision analysis:', { ...message, image: '[base64-data]' });
+
+            // Send via WebSocket with response handler
+            const messageId = sendMessage(message, (response) => {
+                console.log('[Sidebar] 📬 === VISION ANALYSIS RESPONSE ===');
+                console.log('[Sidebar] Status:', response.status);
+
+                if (response.status === 'complete') {
+                    console.log('[Sidebar] ✅ Vision analysis complete!');
+                    handleGitCheckout();
+                    setIsProcessing(false);
+                } else if (response.status === 'error') {
+                    console.error('[Sidebar] ❌ Error:', response.error);
+                    if (response.error && (response.error.includes('signal: killed') || response.error.includes('process was killed'))) {
+                        setToastMessage('Change cancelled');
+                    } else {
+                        setStatusMessage(`Error: ${response.error}`);
+                    }
+                    setIsProcessing(false);
+                }
+            });
+
+            if (!messageId) {
+                console.error('[Sidebar] ❌ Failed to send message - WebSocket not connected');
+                setIsProcessing(false);
+            }
+
+            return;
+        }
+
+        // Original element selection flow
         if (!selectedElement) {
             console.warn('[Sidebar] ⚠️ No element selected');
             return;

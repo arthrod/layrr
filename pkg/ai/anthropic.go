@@ -570,3 +570,34 @@ func extractJSONFromMarkdown(text string) string {
 	// If no code blocks found, return original
 	return text
 }
+
+// AnalyzeDesignImage analyzes a design image and returns a detailed description
+// This is a convenience wrapper around GenerateFromImage with a structured prompt
+func (c *Client) AnalyzeDesignImage(imageBase64, mediaType, userPrompt string) (string, error) {
+	// Build comprehensive analysis prompt
+	analysisPrompt := fmt.Sprintf(`You are analyzing a design image to help implement it in code.
+
+User's request: %s
+
+Provide a comprehensive description that includes:
+1. Layout & Structure (describe top to bottom, left to right)
+2. All Text Content (quote exactly, including headings, body text, labels, buttons, etc.)
+3. Colors & Styling (exact colors in hex, gradients, shadows, borders)
+4. Spacing & Dimensions (margins, padding, sizes, gaps between elements)
+5. Interactive Elements (buttons, inputs, links, their states and styles)
+6. Visual Hierarchy (font sizes, weights, text emphasis)
+7. Responsive/Layout Notes (how elements are arranged and aligned)
+
+Be EXHAUSTIVELY detailed. Extract:
+- Every piece of text verbatim
+- All colors in hex format (e.g., #1a1a1a, #ffffff)
+- Font sizes and weights (e.g., 16px, bold, 400)
+- Border styles and radii (e.g., 1px solid #ccc, border-radius: 8px)
+- Shadow properties (e.g., box-shadow: 0 2px 4px rgba(0,0,0,0.1))
+- Spacing values (e.g., margin: 16px, padding: 12px 24px, gap: 8px)
+- Layout patterns (e.g., flexbox with justify-content: space-between, grid with 3 columns)
+
+Describe every visual element you see so a developer can recreate it pixel-perfect.`, userPrompt)
+
+	return c.GenerateFromImage(imageBase64, mediaType, analysisPrompt)
+}

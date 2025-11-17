@@ -19,7 +19,7 @@ interface ChatInputProps {
   onSelectElement: () => void;
   onClearSelection?: () => void;
   onColorPicker: () => void;
-  onSubmitPrompt: (prompt: string) => void;
+  onSubmitPrompt: (prompt: string, image?: string | null) => void;
   onCheckpointSaved?: () => void;
   onRefreshIframe?: () => void;
   onStopProcessing?: () => void;
@@ -58,6 +58,7 @@ export default function ChatInput({
   const handleSubmit = () => {
     console.log('[ChatInput] 🔥 handleSubmit called!');
     console.log('[ChatInput] Prompt:', prompt);
+    console.log('[ChatInput] Selected Image:', selectedImage ? 'Yes' : 'No');
     console.log('[ChatInput] isProcessing:', isProcessing);
 
     if (!prompt.trim() || isProcessing) {
@@ -65,8 +66,8 @@ export default function ChatInput({
       return;
     }
 
-    console.log('[ChatInput] ✅ Calling onSubmitPrompt');
-    onSubmitPrompt(prompt);
+    console.log('[ChatInput] ✅ Calling onSubmitPrompt with image');
+    onSubmitPrompt(prompt, selectedImage);
     setPrompt('');
     setSelectedImage(null);
   };
