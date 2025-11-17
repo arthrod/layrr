@@ -229,6 +229,16 @@ function App() {
             console.log('[Sidebar] Image provided:', !!image);
             console.log('[Sidebar] WebSocket connected?:', isConnected);
 
+            // Add to message history (keep max 9)
+            setMessageHistory(prev => {
+                const updated = [{
+                    message: prompt,
+                    timestamp: new Date(),
+                    element: 'Image'
+                }, ...prev];
+                return updated.slice(0, 9);
+            });
+
             setIsProcessing(true);
 
             // Extract image type from data URL

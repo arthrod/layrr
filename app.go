@@ -118,7 +118,7 @@ func (a *App) StartProxy(projectPath string, targetPort int) string {
 	}
 
 	// Create asset server (which also proxies to dev server)
-	a.assetServer = assetserver.NewServer(a.assetPort, a.targetPort, a.bridge, a.watcher, false)
+	a.assetServer = assetserver.NewServer(a.assetPort, a.targetPort, a.projectDir, a.bridge, a.watcher, false)
 
 	// Start asset server in goroutine
 	go func() {

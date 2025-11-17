@@ -10,13 +10,13 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thetronjohnson/layrr/pkg/ai"
 	"github.com/thetronjohnson/layrr/pkg/bridge"
+	"github.com/thetronjohnson/layrr/pkg/config"
 	"github.com/thetronjohnson/layrr/pkg/watcher"
 )
 
@@ -33,6 +33,7 @@ var upgrader = websocket.Upgrader{
 type Server struct {
 	port          int
 	targetPort    int
+	projectDir    string
 	bridge        *bridge.Bridge
 	watcher       *watcher.Watcher
 	httpServer    *http.Server
@@ -42,7 +43,7 @@ type Server struct {
 }
 
 // NewServer creates a new asset server
-func NewServer(port int, targetPort int, bridge *bridge.Bridge, watcher *watcher.Watcher, verbose bool) *Server {
+func NewServer(port int, targetPort int, projectDir string, bridge *bridge.Bridge, watcher *watcher.Watcher, verbose bool) *Server {
 	// Create reverse proxy to dev server
 	target := &url.URL{
 		Scheme: "http",
@@ -64,6 +65,7 @@ func NewServer(port int, targetPort int, bridge *bridge.Bridge, watcher *watcher
 	server := &Server{
 		port:          port,
 		targetPort:    targetPort,
+		projectDir:    projectDir,
 		bridge:        bridge,
 		watcher:       watcher,
 		proxy:         proxy,
@@ -347,14 +349,14 @@ func (s *Server) handleDesignAnalysis(conn *websocket.Conn, message []byte) {
 		"status": "received",
 	})
 
-	// Get API key from environment
-	apiKey := os.Getenv("ANTHROPIC_API_KEY")
-	if apiKey == "" {
-		fmt.Printf("[Asset Server] ❌ ANTHROPIC_API_KEY not set\n")
+	// Get API key from config (checks .claude/settings.json)
+	apiKey, err := config.GetAnthropicAPIKey(s.projectDir)
+	if err != nil {
+		fmt.Printf("[Asset Server] ❌ Failed to get API key: %v\n", err)
 		conn.WriteJSON(map[string]interface{}{
 			"id":     req.ID,
 			"status": "error",
-			"error":  "ANTHROPIC_API_KEY environment variable not set",
+			"error":  "API key not configured. Please set ANTHROPIC_API_KEY in .claude/settings.json",
 		})
 		return
 	}
