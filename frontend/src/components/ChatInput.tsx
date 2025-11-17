@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import { CursorClick, Image as ImageIcon, PaperPlaneRight, ArrowsOutCardinal, Eyedropper, Stop, FloppyDisk, ArrowsLeftRight } from '@phosphor-icons/react';
+import { CursorClick, Image as ImageIcon, PaperPlaneRight, Eyedropper, Stop, ClockCounterClockwise } from '@phosphor-icons/react';
+import { CreateGitCheckpoint } from '../../wailsjs/go/main/App';
 
 interface ChatInputProps {
   selectedElement: {
@@ -13,11 +14,12 @@ interface ChatInputProps {
   isProcessing: boolean;
   isSelectionMode: boolean;
   isColorPickerMode: boolean;
+  showCheckpoints?: boolean;
   onSelectElement: () => void;
   onColorPicker: () => void;
-  onSaveCheckpoint: () => void;
-  onViewHistory: () => void;
+  onViewCheckpoints: () => void;
   onSubmitPrompt: (prompt: string) => void;
+  onCheckpointSaved?: () => void;
   onStopProxy?: () => void;
   isLoading?: boolean;
 }
@@ -27,17 +29,21 @@ export default function ChatInput({
   isProcessing,
   isSelectionMode,
   isColorPickerMode,
+  showCheckpoints = false,
   onSelectElement,
   onColorPicker,
-  onSaveCheckpoint,
-  onViewHistory,
+  onViewCheckpoints,
   onSubmitPrompt,
+  onCheckpointSaved,
   onStopProxy,
   isLoading
 }: ChatInputProps) {
   const [prompt, setPrompt] = useState('');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [checkpointMessage, setCheckpointMessage] = useState('');
+  const [isSavingCheckpoint, setIsSavingCheckpoint] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const checkpointTextareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Auto-resize textarea
@@ -68,6 +74,30 @@ export default function ChatInput({
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
+    }
+  };
+
+  const handleCheckpointKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      handleSaveCheckpoint();
+    }
+  };
+
+  const handleSaveCheckpoint = async () => {
+    if (!checkpointMessage.trim() || isSavingCheckpoint) return;
+
+    setIsSavingCheckpoint(true);
+    try {
+      await CreateGitCheckpoint(checkpointMessage);
+      setCheckpointMessage('');
+      if (onCheckpointSaved) {
+        onCheckpointSaved();
+      }
+    } catch (err) {
+      console.error('Failed to save checkpoint:', err);
+    } finally {
+      setIsSavingCheckpoint(false);
     }
   };
 
@@ -117,8 +147,9 @@ export default function ChatInput({
         </div>
       )}
 
-      {/* Action Buttons */}
-      <div className="px-4 pb-2 flex gap-2">
+      {/* Action Buttons - Hidden when checkpoints view is shown */}
+      {!showCheckpoints && (
+        <div className="px-4 pb-2 pt-2 flex gap-2 border-t border-gray-300">
         {/* Select Element Button */}
         <button
           onClick={onSelectElement}
@@ -165,24 +196,14 @@ export default function ChatInput({
           <Eyedropper size={16} weight="bold" />
         </button>
 
-        {/* Save Checkpoint Button */}
+        {/* View Checkpoints Button */}
         <button
-          onClick={onSaveCheckpoint}
+          onClick={onViewCheckpoints}
           disabled={isProcessing}
           className="p-2 rounded-md text-gray-700 hover:bg-primary-dark transition-all disabled:opacity-50"
-          title="Create Checkpoint"
+          title="View Checkpoints"
         >
-          <FloppyDisk size={16} weight="bold" />
-        </button>
-
-        {/* View History Button */}
-        <button
-          onClick={onViewHistory}
-          disabled={isProcessing}
-          className="ml-auto p-2 rounded-md text-gray-700 hover:bg-primary-dark transition-all disabled:opacity-50"
-          title="Checkpoint History"
-        >
-          <ArrowsLeftRight size={16} weight="bold" />
+          <ClockCounterClockwise size={16} weight="bold" />
         </button>
 
         {/* Stop Proxy Button */}
@@ -190,47 +211,82 @@ export default function ChatInput({
           <button
             onClick={onStopProxy}
             disabled={isLoading}
-            className="p-2 rounded-md text-gray-700 hover:bg-primary-dark transition-all disabled:opacity-50"
+            className="ml-auto p-2 rounded-md text-gray-700 hover:bg-primary-dark transition-all disabled:opacity-50"
             title="Stop Proxy"
           >
             <Stop size={16} weight="bold" />
           </button>
         )}
-      </div>
-
-      {/* Chat Input */}
-      <div className="px-4 pb-4">
-        {/* Text Input with Send Button */}
-        <div className="bg-white rounded-lg border border overflow-hidden flex items-end">
-          <textarea
-            ref={textareaRef}
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={isProcessing}
-            placeholder={selectedElement ? "Describe the changes..." : "Select an element first..."}
-            className="flex-1 px-3 py-3 text-sm resize-none focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-gray-400"
-            rows={1}
-            style={{ maxHeight: '120px' }}
-          />
-          {/* Send Button Inside Input */}
-          <button
-            onClick={handleSubmit}
-            disabled={!prompt.trim() || isProcessing}
-            className={`flex-shrink-0 p-3 transition-all ${
-              !prompt.trim() || isProcessing
-                ? 'text-gray-400 cursor-not-allowed'
-                : 'text-button hover:opacity-70'
-            }`}
-            title="Send"
-          >
-            {isProcessing ? (
-              <div className="animate-spin w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full"></div>
-            ) : (
-              <PaperPlaneRight size={20} weight="fill" />
-            )}
-          </button>
         </div>
+      )}
+
+      {/* Chat Input / Checkpoint Input */}
+      <div className="px-4 pb-4">
+        {showCheckpoints ? (
+          /* Checkpoint Input */
+          <div className="space-y-2">
+            <textarea
+              ref={checkpointTextareaRef}
+              value={checkpointMessage}
+              onChange={(e) => setCheckpointMessage(e.target.value)}
+              onKeyDown={handleCheckpointKeyDown}
+              placeholder="Describe your changes..."
+              className="w-full px-4 py-4 bg-white border border-gray-300 rounded-lg text-black text-sm resize-none focus:outline-none focus:border-purple-500 focus:shadow-[0_0_0_2px_rgba(102,126,234,0.1)] placeholder:text-gray-400"
+              rows={2}
+              style={{ maxHeight: '120px' }}
+            />
+            <button
+              onClick={handleSaveCheckpoint}
+              disabled={isSavingCheckpoint || !checkpointMessage.trim()}
+              className="w-full px-4 py-2 text-white text-sm font-semibold rounded-lg transition-all disabled:cursor-not-allowed"
+              style={{ backgroundColor: isSavingCheckpoint || !checkpointMessage.trim() ? '#6B7280' : '#000000' }}
+              onMouseEnter={(e) => {
+                if (!(isSavingCheckpoint || !checkpointMessage.trim())) {
+                  e.currentTarget.style.backgroundColor = '#1F2937';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!(isSavingCheckpoint || !checkpointMessage.trim())) {
+                  e.currentTarget.style.backgroundColor = '#000000';
+                }
+              }}
+            >
+              {isSavingCheckpoint ? 'Saving...' : 'Save Checkpoint'}
+            </button>
+          </div>
+        ) : (
+          /* Regular Chat Input */
+          <div className="bg-white rounded-lg border border overflow-hidden flex items-end">
+            <textarea
+              ref={textareaRef}
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              onKeyDown={handleKeyDown}
+              disabled={isProcessing}
+              placeholder={selectedElement ? "Describe the changes..." : "Select an element first..."}
+              className="flex-1 px-4 py-4 text-sm resize-none focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-gray-400"
+              rows={2}
+              style={{ maxHeight: '150px', minHeight: '60px' }}
+            />
+            {/* Send Button Inside Input */}
+            <button
+              onClick={handleSubmit}
+              disabled={!prompt.trim() || isProcessing}
+              className={`flex-shrink-0 p-3 transition-all ${
+                !prompt.trim() || isProcessing
+                  ? 'text-gray-400 cursor-not-allowed'
+                  : 'text-button hover:opacity-70'
+              }`}
+              title="Send"
+            >
+              {isProcessing ? (
+                <div className="animate-spin w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full"></div>
+              ) : (
+                <PaperPlaneRight size={20} weight="fill" />
+              )}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

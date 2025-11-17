@@ -54,11 +54,11 @@ func (g *GitManager) CreateCommit(message string) error {
 
 func (g *GitManager) GetCommitHistory(limit int) ([]Commit, error) {
 	// Format: hash|short|author|date|message
-	// Use --all to show all commits, not just ancestors of current HEAD
-	// Use --date-order to sort by commit date
+	// Use --reflog to show ALL commits including unreachable ones
+	// This ensures we see commits even after reset --hard
 	args := []string{
 		"log",
-		"--all",
+		"--reflog",
 		"--date-order",
 		fmt.Sprintf("-%d", limit),
 		"--pretty=format:%H|%h|%an|%aI|%s",
@@ -71,6 +71,7 @@ func (g *GitManager) GetCommitHistory(limit int) ([]Commit, error) {
 
 	// Parse output
 	commits := []Commit{}
+	seenHashes := make(map[string]bool)
 	lines := strings.Split(strings.TrimSpace(output), "\n")
 
 	for _, line := range lines {
@@ -83,10 +84,17 @@ func (g *GitManager) GetCommitHistory(limit int) ([]Commit, error) {
 			continue
 		}
 
+		// Skip if we've already seen this commit hash
+		hash := parts[0]
+		if seenHashes[hash] {
+			continue
+		}
+		seenHashes[hash] = true
+
 		date, _ := time.Parse(time.RFC3339, parts[3])
 
 		commits = append(commits, Commit{
-			Hash:      parts[0],
+			Hash:      hash,
 			ShortHash: parts[1],
 			Author:    parts[2],
 			Date:      date,
@@ -111,6 +119,14 @@ func (g *GitManager) CheckoutCommit(commitHash string) error {
 func (g *GitManager) IsGitRepo() bool {
 	err := g.runGitCommand("rev-parse", "--git-dir")
 	return err == nil
+}
+
+func (g *GitManager) GetCurrentCommitHash() (string, error) {
+	output, err := g.runGitCommandWithOutput("rev-parse", "HEAD")
+	if err != nil {
+		return "", fmt.Errorf("failed to get current commit: %w", err)
+	}
+	return strings.TrimSpace(output), nil
 }
 
 func (g *GitManager) runGitCommand(args ...string) error {

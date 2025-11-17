@@ -12,6 +12,8 @@ export function DetectPortsWithInfo():Promise<Array<proxy.PortInfo>>;
 
 export function DetectRunningPorts():Promise<Array<number>>;
 
+export function GetCurrentGitCommit():Promise<string>;
+
 export function GetGitCommitHistory(arg1:number):Promise<Array<git.Commit>>;
 
 export function GetProjectInfo():Promise<Record<string, any>>;

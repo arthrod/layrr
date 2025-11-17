@@ -18,6 +18,10 @@ export function DetectRunningPorts() {
   return window['go']['main']['App']['DetectRunningPorts']();
 }
 
+export function GetCurrentGitCommit() {
+  return window['go']['main']['App']['GetCurrentGitCommit']();
+}
+
 export function GetGitCommitHistory(arg1) {
   return window['go']['main']['App']['GetGitCommitHistory'](arg1);
 }

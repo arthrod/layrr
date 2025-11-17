@@ -75,6 +75,9 @@ func (a *App) StartProxy(projectPath string, targetPort int) string {
 	if projectPath != "" {
 		a.projectDir = projectPath
 		log.Printf("✅ Project directory set to: %s", a.projectDir)
+
+		// Reinitialize git manager for the new project directory
+		a.gitManager = git.NewGitManager(a.projectDir)
 	} else {
 		log.Printf("⚠️  No project path provided, using default: %s", a.projectDir)
 	}
@@ -194,6 +197,9 @@ func (a *App) SelectProjectDirectory() (string, error) {
 	a.projectDir = selectedDir
 	log.Printf("Project directory changed to: %s", selectedDir)
 
+	// Reinitialize git manager for the new project directory
+	a.gitManager = git.NewGitManager(a.projectDir)
+
 	// Add to recent projects
 	projectName := filepath.Base(selectedDir)
 	if err := config.AddRecentProject(selectedDir, projectName, a.targetPort); err != nil {
@@ -228,6 +234,9 @@ func (a *App) OpenRecentProject(path string, targetPort int) string {
 	a.projectDir = path
 	a.targetPort = targetPort
 	log.Printf("Opened recent project: %s", path)
+
+	// Reinitialize git manager for the new project directory
+	a.gitManager = git.NewGitManager(a.projectDir)
 
 	// Update recent projects list
 	projectName := filepath.Base(path)
@@ -319,6 +328,14 @@ func (a *App) SwitchToGitCommit(commitHash string) error {
 // IsGitRepository checks if the current project is a git repo
 func (a *App) IsGitRepository() bool {
 	return a.gitManager.IsGitRepo()
+}
+
+// GetCurrentGitCommit returns the current commit hash
+func (a *App) GetCurrentGitCommit() (string, error) {
+	if !a.gitManager.IsGitRepo() {
+		return "", fmt.Errorf("not a git repository")
+	}
+	return a.gitManager.GetCurrentCommitHash()
 }
 
 // SetAPIKey saves the Anthropic API key

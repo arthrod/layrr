@@ -4,7 +4,8 @@ import ChatInput from './components/ChatInput';
 import WelcomeScreen from './components/WelcomeScreen';
 import GitCheckpointModal from './components/GitCheckpointModal';
 import GitHistoryModal from './components/GitHistoryModal';
-import { FolderOpen, Play, Stop, X } from '@phosphor-icons/react';
+import CheckpointsPanel from './components/CheckpointsPanel';
+import { FolderOpen, Play, Stop, X, ArrowLeft } from '@phosphor-icons/react';
 import { useWebSocket } from './hooks/useWebSocket';
 
 interface ProjectInfo {
@@ -64,6 +65,7 @@ function App() {
     const [toastMessage, setToastMessage] = useState<string | null>(null);
     const [showGitCheckpointModal, setShowGitCheckpointModal] = useState(false);
     const [showGitHistoryModal, setShowGitHistoryModal] = useState(false);
+    const [showCheckpointsPanel, setShowCheckpointsPanel] = useState(false);
     const iframeRef = useRef<HTMLIFrameElement>(null);
 
     // Target port configuration
@@ -613,61 +615,52 @@ function App() {
 
                     {/* Control Panel (Right Side) */}
                     <div className="w-[400px] bg-primary border-l border flex flex-col overflow-hidden rounded-l-xl">
-                        {/* Scrollable Content Area */}
-                        <div className="flex-1 overflow-y-auto p-6">
-                            {/* WebSocket Connection Status */}
-                            {isServerActive && (
-                                <div className="mb-4">
-                                    <div className={`px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-2 ${
-                                        isConnected
-                                            ? 'bg-green-100 text-green-800'
-                                            : 'bg-red-100 text-red-800'
-                                    }`}>
-                                        <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                                        {isConnected ? 'WebSocket Connected' : 'WebSocket Disconnected'}
-                                    </div>
+                        {showCheckpointsPanel ? (
+                            /* Checkpoints Panel View */
+                            <div className="flex-1 overflow-hidden flex flex-col">
+                                {/* Back Button Header */}
+                                <div className="p-4 flex items-center gap-2">
+                                    <button
+                                        onClick={() => setShowCheckpointsPanel(false)}
+                                        className="p-2 rounded-md text-gray-700 hover:bg-primary-dark transition-all"
+                                        title="Back"
+                                    >
+                                        <ArrowLeft size={16} weight="bold" />
+                                    </button>
+                                    <h2 className="text-sm font-semibold text-gray-900 m-0">Checkpoints</h2>
                                 </div>
-                            )}
-
-                            {/* Target Port Configuration */}
-                            {!isServerActive && (
-                                <div className="mb-6">
-                                    <label className="block text-gray-700 text-xs font-medium mb-2">
-                                        Target Port <span className="text-gray-500">(optional - leave blank for auto-detect)</span>
-                                    </label>
-                                    <input
-                                        type="number"
-                                        className="w-full px-4 py-2.5 bg-white border border rounded-lg text-gray-900 text-sm font-mono transition-all focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200 placeholder:text-gray-400"
-                                        placeholder="e.g., 3000"
-                                        value={targetPortInput}
-                                        onChange={(e) => setTargetPortInput(e.target.value)}
-                                        min="1"
-                                        max="65535"
+                                <div className="flex-1 overflow-hidden">
+                                    <CheckpointsPanel
+                                        onCheckout={handleGitCheckout}
+                                        onSuccess={(message) => setToastMessage(message)}
                                     />
-                                    <p className="text-xs text-gray-500 mt-2">
-                                        Common ports: 3000 (React/Next.js), 5173 (Vite), 8080 (general)
-                                    </p>
                                 </div>
-                            )}
+                            </div>
+                        ) : (
+                            /* Normal Sidebar View */
+                            <div className="flex-1 overflow-y-auto p-6">
+                                {/* WebSocket Connection Status */}
+                                {isServerActive && (
+                                    <div className="mb-4">
+                                        <div className={`px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-2 ${
+                                            isConnected
+                                                ? 'bg-green-100 text-green-800'
+                                                : 'bg-red-100 text-red-800'
+                                        }`}>
+                                            <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                                            {isConnected ? 'WebSocket Connected' : 'WebSocket Disconnected'}
+                                        </div>
+                                    </div>
+                                )}
 
-                            {!isServerActive && (
-                                <button
-                                    className="w-full bg-gradient-purple text-white py-3.5 px-6 rounded-lg text-sm font-semibold transition-all hover:-translate-y-0.5 hover:shadow-[0_10px_25px_rgba(102,126,234,0.3)] active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 flex items-center justify-center gap-2 mb-6"
-                                    onClick={handleStartProxy}
-                                    disabled={isLoading}
-                                >
-                                    <Play size={20} weight="fill" />
-                                    {isLoading ? 'Starting...' : 'Start Proxy'}
-                                </button>
-                            )}
-
-                            {/* Minimal status indicator */}
-                            {(isLoading || statusMessage.includes('Error')) && (
-                                <div className="bg-white rounded-lg p-3 mb-4 border border">
-                                    <p className="text-gray-700 text-xs">{statusMessage}</p>
-                                </div>
-                            )}
-                        </div>
+                                {/* Minimal status indicator */}
+                                {(isLoading || statusMessage.includes('Error')) && (
+                                    <div className="bg-white rounded-lg p-3 mb-4 border border">
+                                        <p className="text-gray-700 text-xs">{statusMessage}</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         {/* Color Picker Toast */}
                         {toastMessage && toastMessage.startsWith('Copied') && (
@@ -707,11 +700,14 @@ function App() {
                                 isProcessing={isProcessing}
                                 isSelectionMode={isSelectionMode}
                                 isColorPickerMode={isColorPickerMode}
+                                showCheckpoints={showCheckpointsPanel}
                                 onSelectElement={handleSelectElement}
                                 onColorPicker={handleColorPicker}
-                                onSaveCheckpoint={() => setShowGitCheckpointModal(true)}
-                                onViewHistory={() => setShowGitHistoryModal(true)}
+                                onViewCheckpoints={() => setShowCheckpointsPanel(true)}
                                 onSubmitPrompt={handleSubmitPrompt}
+                                onCheckpointSaved={() => {
+                                    setToastMessage('Checkpoint saved successfully');
+                                }}
                                 onStopProxy={handleStopProxy}
                                 isLoading={isLoading}
                             />
