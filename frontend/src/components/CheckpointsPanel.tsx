@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { FloppyDisk, Clock, CheckCircle, MagnifyingGlass, CaretLeft, CaretRight } from '@phosphor-icons/react';
 import { GetGitCommitHistory, SwitchToGitCommit, GetCurrentGitCommit, CreateGitCheckpoint } from '../../wailsjs/go/main/App';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface Commit {
     hash: string;
@@ -208,8 +209,19 @@ export default function CheckpointsPanel({ onCheckout, onSuccess }: CheckpointsP
                             </div>
                         )}
 
-                        <div className="space-y-2">
-                            {paginatedCommits.map((commit) => {
+                        <motion.div
+                            className="space-y-2"
+                            initial="hidden"
+                            animate="visible"
+                            variants={{
+                                visible: {
+                                    transition: {
+                                        staggerChildren: 0.05
+                                    }
+                                }
+                            }}
+                        >
+                            {paginatedCommits.map((commit, index) => {
                             const isCurrentCommit = commit.hash === currentCommitHash;
                             // Truncate message to max 40 characters
                             const truncatedMessage = commit.message.length > 40
@@ -217,8 +229,14 @@ export default function CheckpointsPanel({ onCheckout, onSuccess }: CheckpointsP
                                 : commit.message;
 
                             return (
-                                <div
+                                <motion.div
                                     key={commit.hash}
+                                    variants={{
+                                        hidden: { opacity: 0, y: 20 },
+                                        visible: { opacity: 1, y: 0 }
+                                    }}
+                                    whileHover={{ scale: 1.02 }}
+                                    whileTap={{ scale: 0.98 }}
                                     className={`px-3 py-2.5 rounded-lg border-2 border-dashed transition-all cursor-pointer group ${
                                         isCurrentCommit
                                             ? 'border-black'
@@ -232,7 +250,13 @@ export default function CheckpointsPanel({ onCheckout, onSuccess }: CheckpointsP
                                         {/* Left: Title with optional check icon */}
                                         <div className="flex items-center gap-1.5 min-w-0">
                                             {isCurrentCommit && (
-                                                <CheckCircle size={12} weight="fill" className="text-black flex-shrink-0" />
+                                                <motion.div
+                                                    initial={{ scale: 0, rotate: -180 }}
+                                                    animate={{ scale: 1, rotate: 0 }}
+                                                    transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                                                >
+                                                    <CheckCircle size={12} weight="fill" className="text-black flex-shrink-0" />
+                                                </motion.div>
                                             )}
                                             <p className={`text-xs font-medium ${
                                                 isCurrentCommit
@@ -260,10 +284,10 @@ export default function CheckpointsPanel({ onCheckout, onSuccess }: CheckpointsP
                                             )}
                                         </div>
                                     </div>
-                                </div>
+                                </motion.div>
                             );
                         })}
-                        </div>
+                        </motion.div>
                     </>
                 )}
             </div>

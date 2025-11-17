@@ -7,6 +7,7 @@ import GitHistoryModal from './components/GitHistoryModal';
 import CheckpointsPanel from './components/CheckpointsPanel';
 import { FolderOpen, Play, Stop, X, ArrowLeft } from '@phosphor-icons/react';
 import { useWebSocket } from './hooks/useWebSocket';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface ProjectInfo {
     projectDir: string;
@@ -615,83 +616,124 @@ function App() {
 
                     {/* Control Panel (Right Side) */}
                     <div className="w-[400px] bg-primary border-l border flex flex-col overflow-hidden rounded-l-xl">
-                        {showCheckpointsPanel ? (
-                            /* Checkpoints Panel View */
-                            <div className="flex-1 overflow-hidden flex flex-col">
-                                {/* Back Button Header */}
-                                <div className="p-4 flex items-center gap-2">
-                                    <button
-                                        onClick={() => setShowCheckpointsPanel(false)}
-                                        className="p-2 rounded-md text-gray-700 hover:bg-primary-dark transition-all"
-                                        title="Back"
-                                    >
-                                        <ArrowLeft size={16} weight="bold" />
-                                    </button>
-                                    <h2 className="text-sm font-semibold text-gray-900 m-0">Checkpoints</h2>
-                                </div>
-                                <div className="flex-1 overflow-hidden">
-                                    <CheckpointsPanel
-                                        onCheckout={handleGitCheckout}
-                                        onSuccess={(message) => setToastMessage(message)}
-                                    />
-                                </div>
-                            </div>
-                        ) : (
-                            /* Normal Sidebar View */
-                            <div className="flex-1 overflow-y-auto p-6">
-                                {/* WebSocket Connection Status */}
-                                {isServerActive && (
-                                    <div className="mb-4">
-                                        <div className={`px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-2 ${
-                                            isConnected
-                                                ? 'bg-green-100 text-green-800'
-                                                : 'bg-red-100 text-red-800'
-                                        }`}>
-                                            <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                                            {isConnected ? 'WebSocket Connected' : 'WebSocket Disconnected'}
+                        <AnimatePresence mode="wait">
+                            {showCheckpointsPanel ? (
+                                /* Checkpoints Panel View */
+                                <motion.div
+                                    key="checkpoints"
+                                    initial={{ x: 20, opacity: 0 }}
+                                    animate={{ x: 0, opacity: 1 }}
+                                    exit={{ x: 20, opacity: 0 }}
+                                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                                    className="flex-1 overflow-hidden flex flex-col"
+                                >
+                                    {/* Back Button Header */}
+                                    <div className="p-4 flex items-center gap-2">
+                                        <motion.button
+                                            onClick={() => setShowCheckpointsPanel(false)}
+                                            className="p-2 rounded-md text-gray-700 hover:bg-primary-dark transition-all"
+                                            title="Back"
+                                            whileHover={{ scale: 1.05 }}
+                                            whileTap={{ scale: 0.95 }}
+                                        >
+                                            <ArrowLeft size={16} weight="bold" />
+                                        </motion.button>
+                                        <h2 className="text-sm font-semibold text-gray-900 m-0">Checkpoints</h2>
+                                    </div>
+                                    <div className="flex-1 overflow-hidden">
+                                        <CheckpointsPanel
+                                            onCheckout={handleGitCheckout}
+                                            onSuccess={(message) => setToastMessage(message)}
+                                        />
+                                    </div>
+                                </motion.div>
+                            ) : (
+                                /* Normal Sidebar View */
+                                <motion.div
+                                    key="main"
+                                    initial={{ x: -20, opacity: 0 }}
+                                    animate={{ x: 0, opacity: 1 }}
+                                    exit={{ x: -20, opacity: 0 }}
+                                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                                    className="flex-1 overflow-y-auto p-6"
+                                >
+                                    {/* WebSocket Connection Status */}
+                                    {isServerActive && (
+                                        <div className="mb-4">
+                                            <div className={`px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-2 ${
+                                                isConnected
+                                                    ? 'bg-green-100 text-green-800'
+                                                    : 'bg-red-100 text-red-800'
+                                            }`}>
+                                                <motion.span
+                                                    className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}
+                                                    animate={{ scale: [1, 1.2, 1] }}
+                                                    transition={{ duration: 2, repeat: Infinity }}
+                                                ></motion.span>
+                                                {isConnected ? 'WebSocket Connected' : 'WebSocket Disconnected'}
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
+                                    )}
 
-                                {/* Minimal status indicator */}
-                                {(isLoading || statusMessage.includes('Error')) && (
-                                    <div className="bg-white rounded-lg p-3 mb-4 border border">
-                                        <p className="text-gray-700 text-xs">{statusMessage}</p>
-                                    </div>
-                                )}
-                            </div>
-                        )}
+                                    {/* Minimal status indicator */}
+                                    {(isLoading || statusMessage.includes('Error')) && (
+                                        <div className="bg-white rounded-lg p-3 mb-4 border border">
+                                            <p className="text-gray-700 text-xs">{statusMessage}</p>
+                                        </div>
+                                    )}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
 
                         {/* Color Picker Toast */}
-                        {toastMessage && toastMessage.startsWith('Copied') && (
-                            <div className="px-4 pt-3 pb-2">
-                                <div className="rounded-lg px-3 py-2 border border-dashed border-gray-400">
-                                    <div className="flex items-center gap-2">
-                                        <div
-                                            className="w-5 h-5 rounded border border-gray-300"
-                                            style={{ backgroundColor: toastMessage.match(/#[0-9a-fA-F]{6}/)?.[0] || '#000000' }}
-                                        ></div>
-                                        <p className="text-xs font-medium text-gray-900 font-mono">
-                                            {toastMessage.match(/#[0-9a-fA-F]{6}/)?.[0] || ''}
+                        <AnimatePresence>
+                            {toastMessage && toastMessage.startsWith('Copied') && (
+                                <motion.div
+                                    initial={{ y: 20, opacity: 0 }}
+                                    animate={{ y: 0, opacity: 1 }}
+                                    exit={{ y: 20, opacity: 0 }}
+                                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                                    className="px-4 pt-3 pb-2"
+                                >
+                                    <div className="rounded-lg px-3 py-2 border border-dashed border-gray-400">
+                                        <div className="flex items-center gap-2">
+                                            <motion.div
+                                                initial={{ scale: 0 }}
+                                                animate={{ scale: 1 }}
+                                                transition={{ delay: 0.1, type: "spring", stiffness: 500, damping: 15 }}
+                                                className="w-5 h-5 rounded border border-gray-300"
+                                                style={{ backgroundColor: toastMessage.match(/#[0-9a-fA-F]{6}/)?.[0] || '#000000' }}
+                                            ></motion.div>
+                                            <p className="text-xs font-medium text-gray-900 font-mono">
+                                                {toastMessage.match(/#[0-9a-fA-F]{6}/)?.[0] || ''}
+                                            </p>
+                                        </div>
+                                        <p className="text-xs text-gray-600 mt-2">
+                                            Copied color to clipboard
                                         </p>
                                     </div>
-                                    <p className="text-xs text-gray-600 mt-2">
-                                        Copied color to clipboard
-                                    </p>
-                                </div>
-                            </div>
-                        )}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
 
                         {/* Git Checkpoint Toast */}
-                        {toastMessage && (toastMessage.includes('Checkpoint') || toastMessage.includes('checkpoint')) && (
-                            <div className="px-4 pt-3 pb-2">
-                                <div className="rounded-lg px-3 py-2 border border-dashed border-gray-400">
-                                    <p className="text-xs font-medium text-gray-900">
-                                        {toastMessage}
-                                    </p>
-                                </div>
-                            </div>
-                        )}
+                        <AnimatePresence>
+                            {toastMessage && (toastMessage.includes('Checkpoint') || toastMessage.includes('checkpoint')) && (
+                                <motion.div
+                                    initial={{ y: 20, opacity: 0 }}
+                                    animate={{ y: 0, opacity: 1 }}
+                                    exit={{ y: 20, opacity: 0 }}
+                                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                                    className="px-4 pt-3 pb-2"
+                                >
+                                    <div className="rounded-lg px-3 py-2 border border-dashed border-gray-400">
+                                        <p className="text-xs font-medium text-gray-900">
+                                            {toastMessage}
+                                        </p>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
 
                         {/* Chat Input at Bottom */}
                         {isServerActive && (

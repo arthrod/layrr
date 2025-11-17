@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { CursorClick, Image as ImageIcon, PaperPlaneRight, Eyedropper, Stop, ClockCounterClockwise } from '@phosphor-icons/react';
 import { CreateGitCheckpoint } from '../../wailsjs/go/main/App';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface ChatInputProps {
   selectedElement: {
@@ -115,18 +116,30 @@ export default function ChatInput({
   return (
     <div className="border-t border bg-primary">
       {/* Selected Element Preview */}
-      {selectedElement && (
-        <div className="px-4 pt-3 pb-2">
-          <div className="rounded-lg px-3 py-2 border border-dashed border-gray-400">
-            <p className="text-xs font-medium text-gray-900">
-              Selected: <span className="font-mono">{selectedElement.tagName}</span>
-            </p>
-            <p className="text-xs text-gray-600 font-mono truncate">
-              {selectedElement.selector}
-            </p>
-          </div>
-        </div>
-      )}
+      <AnimatePresence>
+        {selectedElement && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+            className="px-4 pt-3 pb-2 overflow-hidden"
+          >
+            <motion.div
+              initial={{ y: -10 }}
+              animate={{ y: 0 }}
+              className="rounded-lg px-3 py-2 border border-dashed border-gray-400"
+            >
+              <p className="text-xs font-medium text-gray-900">
+                Selected: <span className="font-mono">{selectedElement.tagName}</span>
+              </p>
+              <p className="text-xs text-gray-600 font-mono truncate">
+                {selectedElement.selector}
+              </p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Selected Image Preview */}
       {selectedImage && (
@@ -151,7 +164,7 @@ export default function ChatInput({
       {!showCheckpoints && (
         <div className="px-4 pb-2 pt-2 flex gap-2 border-t border-gray-300">
         {/* Select Element Button */}
-        <button
+        <motion.button
           onClick={onSelectElement}
           disabled={isProcessing}
           className={`p-2 rounded-md transition-all ${
@@ -160,19 +173,23 @@ export default function ChatInput({
               : 'text-gray-700 hover:bg-primary-dark'
           }`}
           title={isSelectionMode ? 'Click to disable selector' : 'Select Element'}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
         >
           <CursorClick size={16} weight="bold" />
-        </button>
+        </motion.button>
 
         {/* Image Upload Button */}
-        <button
+        <motion.button
           onClick={() => fileInputRef.current?.click()}
           disabled={isProcessing}
           className="p-2 rounded-md text-gray-700 hover:bg-primary-dark transition-all disabled:opacity-50"
           title="Upload Image"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
         >
           <ImageIcon size={16} weight="bold" />
-        </button>
+        </motion.button>
         <input
           ref={fileInputRef}
           type="file"
@@ -183,7 +200,7 @@ export default function ChatInput({
 
 
         {/* Color Picker Button */}
-        <button
+        <motion.button
           onClick={onColorPicker}
           disabled={isProcessing}
           className={`p-2 rounded-md transition-all ${
@@ -192,30 +209,36 @@ export default function ChatInput({
               : 'text-gray-700 hover:bg-primary-dark'
           }`}
           title={isColorPickerMode ? 'Click to disable color picker' : 'Color Picker'}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
         >
           <Eyedropper size={16} weight="bold" />
-        </button>
+        </motion.button>
 
         {/* View Checkpoints Button */}
-        <button
+        <motion.button
           onClick={onViewCheckpoints}
           disabled={isProcessing}
           className="p-2 rounded-md text-gray-700 hover:bg-primary-dark transition-all disabled:opacity-50"
           title="View Checkpoints"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
         >
           <ClockCounterClockwise size={16} weight="bold" />
-        </button>
+        </motion.button>
 
         {/* Stop Proxy Button */}
         {onStopProxy && (
-          <button
+          <motion.button
             onClick={onStopProxy}
             disabled={isLoading}
             className="ml-auto p-2 rounded-md text-gray-700 hover:bg-primary-dark transition-all disabled:opacity-50"
             title="Stop Proxy"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
           >
             <Stop size={16} weight="bold" />
-          </button>
+          </motion.button>
         )}
         </div>
       )}
