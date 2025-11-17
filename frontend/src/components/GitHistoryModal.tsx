@@ -82,8 +82,8 @@ export default function GitHistoryModal({ show, onClose, onCheckout }: GitHistor
                 {/* Header */}
                 <div className="px-6 py-6 pb-4 border-b border-primary-lighter flex justify-between items-center flex-shrink-0">
                     <div className="flex items-center gap-2">
-                        <ArrowsLeftRight size={24} weight="bold" className="text-purple-400" />
-                        <h2 className="text-xl text-slate-200 m-0">Checkpoint History</h2>
+                        <ArrowsLeftRight size={24} weight="bold" className="text-black" />
+                        <h2 className="text-xl text-black m-0">Checkpoint History</h2>
                     </div>
                     <button
                         onClick={onClose}
@@ -113,35 +113,33 @@ export default function GitHistoryModal({ show, onClose, onCheckout }: GitHistor
                             {commits.map((commit) => (
                                 <div
                                     key={commit.hash}
-                                    className={`p-4 bg-primary rounded-lg border border-primary-lighter hover:border-purple-500 transition-all cursor-pointer group ${
+                                    className={`px-4 py-3 rounded-lg border-2 border-dashed border-gray-300 hover:border-purple-500 transition-all cursor-pointer group ${
                                         isSwitching && switchingHash === commit.shortHash ? 'opacity-50' : ''
                                     }`}
                                     onClick={() => !isSwitching && handleCheckout(commit.hash, commit.shortHash)}
                                 >
-                                    <div className="flex items-start justify-between gap-4">
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-slate-200 font-medium mb-2 group-hover:text-purple-300 transition-colors">
-                                                {commit.message}
-                                            </p>
-                                            <div className="flex items-center gap-3 text-xs text-slate-400 flex-wrap">
-                                                <span className="font-mono bg-primary-lighter px-2 py-1 rounded">
-                                                    {commit.shortHash}
-                                                </span>
-                                                <span className="flex items-center gap-1">
-                                                    <Clock size={12} weight="bold" />
-                                                    {formatDate(commit.date)}
-                                                </span>
-                                                {commit.author !== 'Layrr' && (
-                                                    <>
-                                                        <span>•</span>
-                                                        <span>{commit.author}</span>
-                                                    </>
-                                                )}
-                                            </div>
+                                    <div className="flex items-center justify-between gap-4">
+                                        <p className="text-black font-medium group-hover:text-purple-600 transition-colors truncate w-64 flex-shrink-0">
+                                            {commit.message}
+                                        </p>
+                                        <div className="flex items-center gap-3 text-xs text-gray-600">
+                                            <span className="font-mono bg-gray-100 px-2 py-1 rounded border border-gray-300">
+                                                {commit.shortHash}
+                                            </span>
+                                            <span className="flex items-center gap-1">
+                                                <Clock size={12} weight="bold" />
+                                                {formatDate(commit.date)}
+                                            </span>
+                                            {commit.author !== 'Layrr' && (
+                                                <>
+                                                    <span>•</span>
+                                                    <span>{commit.author}</span>
+                                                </>
+                                            )}
+                                            {isSwitching && switchingHash === commit.shortHash && (
+                                                <div className="animate-spin w-5 h-5 border-2 border-purple-500 border-t-transparent rounded-full"></div>
+                                            )}
                                         </div>
-                                        {isSwitching && switchingHash === commit.shortHash && (
-                                            <div className="animate-spin w-5 h-5 border-2 border-purple-500 border-t-transparent rounded-full flex-shrink-0"></div>
-                                        )}
                                     </div>
                                 </div>
                             ))}

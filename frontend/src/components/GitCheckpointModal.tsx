@@ -50,8 +50,8 @@ export default function GitCheckpointModal({ show, onClose, onSuccess }: GitChec
                 {/* Header */}
                 <div className="px-6 py-6 pb-4 border-b border-primary-lighter flex justify-between items-center">
                     <div className="flex items-center gap-2">
-                        <FloppyDisk size={24} weight="bold" className="text-purple-400" />
-                        <h2 className="text-xl text-slate-200 m-0">Create Checkpoint</h2>
+                        <FloppyDisk size={24} weight="bold" className="text-black" />
+                        <h2 className="text-xl text-black m-0">Create Checkpoint</h2>
                     </div>
                     <button
                         onClick={onClose}
@@ -77,7 +77,7 @@ export default function GitCheckpointModal({ show, onClose, onSuccess }: GitChec
                             {error}
                         </div>
                     )}
-                    <p className="mt-3 text-xs text-slate-500">
+                    <p className="mt-3 text-xs text-gray-500">
                         Tip: Press ⌘+Enter (or Ctrl+Enter) to save
                     </p>
                 </div>

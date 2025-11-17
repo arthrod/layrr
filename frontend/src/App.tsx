@@ -669,7 +669,7 @@ function App() {
                             )}
                         </div>
 
-                        {/* Color Picker Preview - Same location as selected element preview */}
+                        {/* Color Picker Toast */}
                         {toastMessage && toastMessage.startsWith('Copied') && (
                             <div className="px-4 pt-3 pb-2">
                                 <div className="rounded-lg px-3 py-2 border border-dashed border-gray-400">
@@ -684,6 +684,17 @@ function App() {
                                     </div>
                                     <p className="text-xs text-gray-600 mt-2">
                                         Copied color to clipboard
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Git Checkpoint Toast */}
+                        {toastMessage && (toastMessage.includes('Checkpoint') || toastMessage.includes('checkpoint')) && (
+                            <div className="px-4 pt-3 pb-2">
+                                <div className="rounded-lg px-3 py-2 border border-dashed border-gray-400">
+                                    <p className="text-xs font-medium text-gray-900">
+                                        {toastMessage}
                                     </p>
                                 </div>
                             </div>
@@ -772,7 +783,7 @@ function App() {
                 show={showGitCheckpointModal}
                 onClose={() => setShowGitCheckpointModal(false)}
                 onSuccess={() => {
-                    console.log('Git checkpoint created successfully');
+                    setToastMessage('Checkpoint saved successfully');
                 }}
             />
 
@@ -780,7 +791,10 @@ function App() {
             <GitHistoryModal
                 show={showGitHistoryModal}
                 onClose={() => setShowGitHistoryModal(false)}
-                onCheckout={handleGitCheckout}
+                onCheckout={() => {
+                    handleGitCheckout();
+                    setToastMessage('Switched to checkpoint');
+                }}
             />
         </div>
     );
