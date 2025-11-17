@@ -9,7 +9,6 @@ import (
 	"time"
 )
 
-// Commit represents a git commit
 type Commit struct {
 	Hash      string    `json:"hash"`
 	Message   string    `json:"message"`
@@ -18,24 +17,26 @@ type Commit struct {
 	ShortHash string    `json:"shortHash"`
 }
 
-// GitManager handles git operations
 type GitManager struct {
 	projectDir string
 }
 
-// NewGitManager creates a new GitManager
 func NewGitManager(projectDir string) *GitManager {
 	return &GitManager{projectDir: projectDir}
 }
 
-// CreateCommit stages all changes and creates a commit with custom author
 func (g *GitManager) CreateCommit(message string) error {
+	// Ensure we're on main branch
+	if err := g.ensureMainBranch(); err != nil {
+		return fmt.Errorf("failed to ensure main branch: %w", err)
+	}
+
 	// Stage all changes
 	if err := g.runGitCommand("add", "."); err != nil {
 		return fmt.Errorf("failed to stage changes: %w", err)
 	}
 
-	// Create commit with custom author
+	// Create commit with custom author using environment variables
 	if err := g.runGitCommandWithEnv(
 		[]string{
 			"GIT_AUTHOR_NAME=Layrr",
@@ -51,11 +52,14 @@ func (g *GitManager) CreateCommit(message string) error {
 	return nil
 }
 
-// GetCommitHistory retrieves list of commits
 func (g *GitManager) GetCommitHistory(limit int) ([]Commit, error) {
 	// Format: hash|short|author|date|message
+	// Use --all to show all commits, not just ancestors of current HEAD
+	// Use --date-order to sort by commit date
 	args := []string{
 		"log",
+		"--all",
+		"--date-order",
 		fmt.Sprintf("-%d", limit),
 		"--pretty=format:%H|%h|%an|%aI|%s",
 	}
@@ -93,34 +97,28 @@ func (g *GitManager) GetCommitHistory(limit int) ([]Commit, error) {
 	return commits, nil
 }
 
-// CheckoutCommit checks out a specific commit
 func (g *GitManager) CheckoutCommit(commitHash string) error {
-	return g.runGitCommand("checkout", commitHash)
-}
-
-// GetCurrentBranch returns the current branch or HEAD state
-func (g *GitManager) GetCurrentBranch() (string, error) {
-	output, err := g.runGitCommandWithOutput("rev-parse", "--abbrev-ref", "HEAD")
-	if err != nil {
-		return "", err
+	// Ensure we're on main branch first
+	if err := g.ensureMainBranch(); err != nil {
+		return fmt.Errorf("failed to ensure main branch: %w", err)
 	}
-	return strings.TrimSpace(output), nil
+
+	// Use reset --hard to move to a commit while staying on main branch
+	// This allows viewing all commits in history, not just ancestors
+	return g.runGitCommand("reset", "--hard", commitHash)
 }
 
-// IsGitRepo checks if directory is a git repository
 func (g *GitManager) IsGitRepo() bool {
 	err := g.runGitCommand("rev-parse", "--git-dir")
 	return err == nil
 }
 
-// runGitCommand executes a git command
 func (g *GitManager) runGitCommand(args ...string) error {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = g.projectDir
 	return cmd.Run()
 }
 
-// runGitCommandWithOutput executes git and returns output
 func (g *GitManager) runGitCommandWithOutput(args ...string) (string, error) {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = g.projectDir
@@ -135,10 +133,50 @@ func (g *GitManager) runGitCommandWithOutput(args ...string) (string, error) {
 	return out.String(), nil
 }
 
-// runGitCommandWithEnv runs git with custom environment variables
 func (g *GitManager) runGitCommandWithEnv(envVars []string, args ...string) error {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = g.projectDir
 	cmd.Env = append(os.Environ(), envVars...)
 	return cmd.Run()
+}
+
+func (g *GitManager) ensureMainBranch() error {
+	// Get current branch name
+	currentBranch, err := g.runGitCommandWithOutput("rev-parse", "--abbrev-ref", "HEAD")
+	if err != nil {
+		return fmt.Errorf("failed to get current branch: %w", err)
+	}
+	currentBranch = strings.TrimSpace(currentBranch)
+
+	// If already on main, we're good
+	if currentBranch == "main" {
+		return nil
+	}
+
+	// Check if main branch exists
+	err = g.runGitCommand("rev-parse", "--verify", "main")
+	if err != nil {
+		// Main branch doesn't exist, create it from current HEAD
+		if err := g.runGitCommand("branch", "main"); err != nil {
+			return fmt.Errorf("failed to create main branch: %w", err)
+		}
+	}
+
+	// Switch to main branch
+	if err := g.runGitCommand("checkout", "main"); err != nil {
+		return fmt.Errorf("failed to checkout main branch: %w", err)
+	}
+
+	// If we were on a different branch, merge it into main
+	if currentBranch != "HEAD" {
+		// Merge the old branch into main
+		if err := g.runGitCommand("merge", "--ff-only", currentBranch); err != nil {
+			// If fast-forward merge fails, try regular merge
+			if err := g.runGitCommand("merge", currentBranch); err != nil {
+				return fmt.Errorf("failed to merge %s into main: %w", currentBranch, err)
+			}
+		}
+	}
+
+	return nil
 }
